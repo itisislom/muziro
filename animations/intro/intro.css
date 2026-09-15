@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap');
+
+/* ==========================================================================
+   Muziro Natural Intro Styles (Montserrat Black & Pencil Effect)
+   Naturally blurs the host page without artificial shadows or backdrops
+   ========================================================================== */
+
+/* Main Natural Blur Overlay */
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  /* Clean semi-translucent frosted veil that naturally blurs the host page */
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+              backdrop-filter 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+              -webkit-backdrop-filter 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Smooth Dissolve Out State */
+.intro-overlay.is-fading-out {
+  opacity: 0;
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  pointer-events: none;
+}
+
+/* Brand Stage Container */
+.brand-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.intro-overlay.is-fading-out .brand-stage {
+  transform: scale(0.97);
+  opacity: 0;
+}
+
+/* Wrapper for letter 'M' */
+.m-wrapper {
+  width: 52px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  will-change: transform;
+  position: relative;
+  z-index: 2;
+}
+
+/* Pencil 'M' SVG */
+.pencil-m-svg {
+  width: 52px;
+  height: 44px;
+  overflow: visible;
+  display: block;
+}
+
+/* Pencil stroke dashed animations */
+.m-stroke-sketch,
+.m-stroke-main {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+}
+
+/* 1-second Pencil Drawing Phase (0s to 1.0s) */
+.is-drawing .m-stroke-sketch {
+  animation: drawPencil 1.0s cubic-bezier(0.35, 0, 0.25, 1) forwards;
+}
+
+.is-drawing .m-stroke-main {
+  animation: drawPencil 1.0s cubic-bezier(0.35, 0, 0.25, 1) forwards;
+}
+
+@keyframes drawPencil {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Wrapper for 'uziro' */
+.uziro-wrapper {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  clip-path: inset(0 100% 0 0);
+  will-change: clip-path, opacity, transform;
+  /* Letter U balanced spacing: shifted slightly right */
+  margin-left: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Typography: Montserrat Black (900) */
+.uziro-text {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 54px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  color: #09090b;
+  line-height: 1;
+  padding-left: 0;
+  user-select: none;
+  display: inline-block;
+  transform: translateY(1px);
+}

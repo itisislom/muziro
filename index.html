@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Muziro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Muziro Intro Animation Styles -->
+  <link rel="stylesheet" href="animations/intro/intro.css">
+  <style>
+    /* Reset & Base Canvas */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+      background-color: #ffffff;
+      font-family: 'Montserrat', sans-serif;
+      color: #09090b;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Main Container */
+    .dashboard-container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 36px 24px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 48px;
+    }
+
+    /* CapCut Hero Card: Large top card with black-to-gray gradient, rectangular edges & black border */
+    .capcut-hero-card {
+      width: 100%;
+      min-height: 250px;
+      border-radius: 0px; /* Rectangular edges */
+      border: 2px solid #000000; /* Black border */
+      /* Black to Gray Gradient */
+      background: linear-gradient(135deg, #2b2b30 0%, #18181b 45%, #09090b 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Subtle atmospheric background grid pattern inside card */
+    .capcut-hero-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+
+    /* Subtle ambient radial light in top-right */
+    .capcut-hero-card::after {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -10%;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    /* Center Button: Black background, rectangular edges, black border */
+    .new-project-btn {
+      position: relative;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      background-color: #000000; /* Black button background */
+      color: #ffffff;
+      text-decoration: none;
+      padding: 18px 44px;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      border-radius: 0px; /* Rectangular edges */
+      border: 2px solid #000000; /* Black border */
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                  box-shadow 0.2s ease,
+                  background-color 0.2s ease,
+                  border-color 0.2s ease;
+    }
+
+    .new-project-btn:hover {
+      transform: translateY(-2px);
+      background-color: #0a0a0c;
+      border-color: #ffffff;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+
+    .new-project-btn:active {
+      transform: translateY(0px) scale(0.98);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+    }
+
+    .plus-icon-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      background-color: #ffffff;
+      color: #000000;
+      border-radius: 0px; /* Rectangular edges */
+    }
+
+    .plus-icon-wrapper svg {
+      width: 16px;
+      height: 16px;
+      stroke-width: 3;
+    }
+
+    /* Recent Projects Section (CapCut Studio Style) */
+    .recent-section {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #000000;
+      padding-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .section-meta {
+      font-size: 13px;
+      font-weight: 600;
+      color: #71717a;
+    }
+
+    .empty-projects-card {
+      border: 2px dashed #000000;
+      border-radius: 0px; /* Rectangular edges */
+      padding: 48px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 12px;
+      background: #fafafa;
+    }
+
+    .empty-icon {
+      width: 44px;
+      height: 44px;
+      border: 2px solid #000000;
+      border-radius: 0px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+      background: #ffffff;
+    }
+
+    .empty-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .empty-subtitle {
+      font-size: 14px;
+      color: #71717a;
+      max-width: 400px;
+      line-height: 1.5;
+    }
+
+    /* Projects Grid & Cards */
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 20px;
+      width: 100%;
+    }
+
+    .project-card {
+      background: #ffffff;
+      border: 2px solid #000000;
+      border-radius: 0px; /* Rectangular edges */
+      padding: 22px 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                  box-shadow 0.2s ease,
+                  background-color 0.15s ease;
+    }
+
+    .project-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 26px -4px rgba(0, 0, 0, 0.16);
+      background-color: #fafafa;
+    }
+
+    .project-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .project-card-icon {
+      width: 36px;
+      height: 36px;
+      background-color: #000000;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0px;
+      border: 2px solid #000000;
+    }
+
+    .project-card-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .project-action-btn {
+      background: transparent;
+      border: 1.5px solid transparent;
+      color: #71717a;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 0px;
+      transition: all 0.15s ease;
+    }
+
+    .project-rename-btn:hover {
+      background: #f4f4f5;
+      border-color: #000000;
+      color: #000000;
+      transform: translateY(-1px);
+    }
+
+    .project-delete-btn:hover {
+      background: #fee2e2;
+      border-color: #ef4444;
+      color: #dc2626;
+      transform: translateY(-1px);
+    }
+
+    .project-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .project-title-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-height: 26px;
+    }
+
+    .project-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #09090b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+      cursor: pointer;
+      padding: 2px 5px;
+      margin: -2px -5px;
+      border-radius: 0px;
+      border: 1.5px solid transparent;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .project-title:hover {
+      background-color: #f4f4f5;
+      border-color: #000000;
+    }
+
+    .project-title-input {
+      width: 100%;
+      font-size: 16px;
+      font-weight: 800;
+      font-family: inherit;
+      color: #000000;
+      background: #ffffff;
+      border: 2px solid #000000;
+      border-radius: 0px;
+      padding: 3px 6px;
+      outline: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .project-details {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .detail-badge {
+      font-size: 11px;
+      font-weight: 700;
+      background: #f4f4f5;
+      color: #52525b;
+      border: 1px solid #e4e4e7;
+      padding: 3px 8px;
+      border-radius: 0px;
+    }
+
+    .detail-badge.badge-autosaved {
+      background: #000000;
+      color: #ffffff;
+      border: 1px solid #000000;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 3px 8px;
+    }
+
+    .project-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid #e4e4e7;
+      padding-top: 12px;
+      margin-top: auto;
+    }
+
+    .project-date {
+      font-size: 12px;
+      color: #71717a;
+      font-weight: 500;
+    }
+
+    .project-open-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #000000;
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 0px;
+      border: 1.5px solid #000000;
+      transition: background 0.15s ease;
+    }
+
+    .project-open-btn:hover {
+      background: #222222;
+    }
+
+    /* Delete Modal Overlay with Frosted Glass Blur & Micro-Animations */
+    .delete-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .delete-modal-overlay.is-active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .delete-modal-card {
+      background: #ffffff;
+      border: 2px solid #000000;
+      border-radius: 0px;
+      box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.4);
+      width: 90%;
+      max-width: 450px;
+      padding: 30px 26px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      transform: scale(0.92) translateY(10px);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .delete-modal-overlay.is-active .delete-modal-card {
+      transform: scale(1) translateY(0px);
+    }
+    .delete-modal-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .delete-modal-icon {
+      width: 44px;
+      height: 44px;
+      background-color: #000000;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border-radius: 0px;
+      border: 2px solid #000000;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+    .delete-modal-overlay.is-active:hover .delete-modal-icon {
+      background-color: #000000;
+    }
+    .delete-modal-titles {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .delete-modal-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #000000;
+      line-height: 1.25;
+      font-family: 'Montserrat', -apple-system, sans-serif;
+    }
+    .delete-modal-subtitle {
+      font-size: 13px;
+      font-weight: 500;
+      color: #666666;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+    .delete-project-name {
+      color: #000000;
+      font-weight: 700;
+      background: #f4f4f5;
+      padding: 2px 6px;
+      border: 1px solid #e4e4e7;
+      display: inline-block;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: bottom;
+    }
+    .delete-modal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .modal-btn {
+      padding: 10px 22px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 0px;
+      transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: inherit;
+      user-select: none;
+    }
+    .modal-btn-cancel {
+      background: #ffffff;
+      color: #000000;
+      border: 2px solid #000000;
+    }
+    .modal-btn-cancel:hover {
+      background: #f4f4f5;
+      transform: translateY(-1px);
+    }
+    .modal-btn-delete {
+      background: #000000;
+      color: #ffffff;
+      border: 2px solid #000000;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .modal-btn-delete:hover {
+      background: #dc2626;
+      border-color: #dc2626;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+    }
+    .modal-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* Bottom Delete Toast */
+    .delete-toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(35px);
+      background: #000000;
+      color: #ffffff;
+      border: 2px solid #000000;
+      border-radius: 0px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: 'Montserrat', -apple-system, sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 9999999;
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease;
+    }
+    .delete-toast.is-active {
+      transform: translateX(-50%) translateY(0px);
+      opacity: 1;
+    }
+
+    /* Page Transition & Workstation Loader Overlay */
+    .muz-page-loader {
+      position: fixed;
+      inset: 0;
+      background: rgba(14, 14, 14, 0.78);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .muz-page-loader.is-active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .muz-loader-card {
+      background: #000000;
+      border: 2px solid #282828;
+      border-radius: 0px;
+      padding: 28px 42px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+      transform: scale(0.96);
+      transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .muz-page-loader.is-active .muz-loader-card {
+      transform: scale(1);
+    }
+    .muz-loader-wave {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      height: 30px;
+    }
+    .muz-loader-bar {
+      width: 4px;
+      background: #ffffff;
+      border-radius: 0px;
+      animation: muzWavePulse 0.85s ease-in-out infinite alternate;
+    }
+    .muz-loader-bar:nth-child(1) { height: 8px; animation-delay: 0.0s; }
+    .muz-loader-bar:nth-child(2) { height: 16px; animation-delay: 0.18s; }
+    .muz-loader-bar:nth-child(3) { height: 26px; animation-delay: 0.36s; }
+    .muz-loader-bar:nth-child(4) { height: 18px; animation-delay: 0.54s; }
+    .muz-loader-bar:nth-child(5) { height: 10px; animation-delay: 0.72s; }
+
+    @keyframes muzWavePulse {
+      0% { height: 6px; opacity: 0.35; transform: scaleY(0.4); }
+      100% { height: 28px; opacity: 1; transform: scaleY(1); }
+    }
+    .muz-loader-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #ffffff;
+      font-family: 'Montserrat', -apple-system, sans-serif;
+    }
+    .muz-loader-sub {
+      font-size: 11px;
+      font-weight: 600;
+      color: #888888;
+      letter-spacing: 0.5px;
+      font-family: 'Montserrat', -apple-system, sans-serif;
+    }
+
+    /* Active state for New Project Button */
+    .new-project-btn.is-launching {
+      transform: scale(0.97);
+      opacity: 0.8;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="dashboard-container">
+    <!-- CapCut-style Hero Card -->
+    <section class="capcut-hero-card" aria-label="Create New Project">
+      <!-- Centered New Project Button -->
+      <a href="process.html" id="new-project-btn" class="new-project-btn" title="Create New Project">
+        <div class="plus-icon-wrapper">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="square">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </div>
+        <span>New Project</span>
+      </a>
+    </section>
+
+    <!-- Recent Projects Section -->
+    <section class="recent-section">
+      <div class="section-header">
+        <h2 class="section-title">Projects</h2>
+        <span class="section-meta" id="projects-meta">Audio Timeline & Clips</span>
+      </div>
+      <div class="empty-projects-card" id="empty-projects-card">
+        <div class="empty-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+            <rect x="2" y="3" width="20" height="14"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
+        <p class="empty-title">No projects yet</p>
+        <p class="empty-subtitle">Click «New Project» above to open the multitrack workstation and start editing.</p>
+      </div>
+
+      <!-- Dynamic Saved Projects Grid -->
+      <div class="projects-grid" id="projects-grid" style="display: none;"></div>
+    </section>
+  </main>
+
+  <!-- Custom Delete Confirmation Modal with Frosted Glass Blur & Micro-Animation -->
+  <div class="delete-modal-overlay" id="delete-modal-overlay" aria-hidden="true">
+    <div class="delete-modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+      <div class="delete-modal-header">
+        <div class="delete-modal-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        </div>
+        <div class="delete-modal-titles">
+          <h2 id="delete-modal-title" class="delete-modal-title">Delete Project?</h2>
+          <p class="delete-modal-subtitle">
+            Are you sure you want to delete <span class="delete-project-name" id="delete-project-name">this project</span>? This action cannot be undone.
+          </p>
+        </div>
+      </div>
+      <div class="delete-modal-actions">
+        <button type="button" id="delete-cancel-btn" class="modal-btn modal-btn-cancel">Cancel</button>
+        <button type="button" id="delete-confirm-btn" class="modal-btn modal-btn-delete">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+          <span>Delete</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Delete Notification Toast -->
+  <div class="delete-toast" id="delete-toast" aria-live="polite">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.6" stroke-linecap="square">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+    <span>Project deleted</span>
+  </div>
+
+  <!-- Page Transition & Workstation Loader Overlay -->
+  <div class="muz-page-loader" id="page-loader-overlay" aria-hidden="true">
+    <div class="muz-loader-card" role="status" aria-live="polite">
+      <div class="muz-loader-wave">
+        <div class="muz-loader-bar"></div>
+        <div class="muz-loader-bar"></div>
+        <div class="muz-loader-bar"></div>
+        <div class="muz-loader-bar"></div>
+        <div class="muz-loader-bar"></div>
+      </div>
+      <div class="muz-loader-title" id="page-loader-title">INITIALIZING WORKSTATION</div>
+      <div class="muz-loader-sub" id="page-loader-sub">Loading audio engine & multitrack canvas...</div>
+    </div>
+  </div>
+
+  <!-- Muziro Intro Animation Engine: executes on each website launch -->
+  <script src="animations/intro/intro.js"></script>
+
+  <!-- Projects Storage & Dashboard Script -->
+  <script>
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderProjects() {
+      const grid = document.getElementById('projects-grid');
+      const emptyCard = document.getElementById('empty-projects-card');
+      const metaSpan = document.getElementById('projects-meta');
+      if (!grid || !emptyCard) return;
+
+      let projects = [];
+      try {
+        projects = JSON.parse(localStorage.getItem('muziro_projects') || '[]');
+      } catch (e) {
+        projects = [];
+      }
+
+      if (!Array.isArray(projects) || projects.length === 0) {
+        emptyCard.style.display = 'flex';
+        grid.style.display = 'none';
+        if (metaSpan) metaSpan.textContent = '0 projects';
+        return;
+      }
+
+      emptyCard.style.display = 'none';
+      grid.style.display = 'grid';
+      if (metaSpan) metaSpan.textContent = `${projects.length} project${projects.length === 1 ? '' : 's'}`;
+
+      grid.innerHTML = projects.map(p => {
+        const dateObj = new Date(p.updatedAt || p.createdAt || Date.now());
+        const dateStr = isNaN(dateObj.getTime()) ? 'Recently' : dateObj.toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        const tracksCount = p.tracksCount || 1;
+        const duration = p.duration || '00:00.000';
+        const projectUrl = `process.html?project=${encodeURIComponent(p.id)}`;
+
+        return `
+          <div class="project-card" data-url="${projectUrl}">
+            <div class="project-card-header">
+              <div class="project-card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+                  <path d="M9 18V5l12-2v13"></path>
+                  <circle cx="6" cy="18" r="3"></circle>
+                  <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+              </div>
+              <div class="project-card-actions">
+                <button type="button" class="project-action-btn project-rename-btn" data-rename-id="${p.id}" data-project-name="${escapeHtml(p.name)}" title="Rename project">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="square">
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                  </svg>
+                </button>
+                <button type="button" class="project-action-btn project-delete-btn" data-delete-id="${p.id}" data-project-name="${escapeHtml(p.name)}" title="Delete project">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="project-card-body">
+              <div class="project-title-container">
+                <h3 class="project-title" data-project-id="${p.id}" title="Click to rename: ${escapeHtml(p.name)}">${escapeHtml(p.name)}</h3>
+                <input type="text" class="project-title-input" data-project-id="${p.id}" maxlength="45" style="display: none;" spellcheck="false">
+              </div>
+              <div class="project-details">
+                ${p.isDraft ? '<span class="detail-badge badge-autosaved" title="Unsaved auto-recovered draft">Autosaved</span>' : ''}
+                <span class="detail-badge">${tracksCount} track${tracksCount === 1 ? '' : 's'}</span>
+                <span class="detail-badge">${duration}</span>
+              </div>
+            </div>
+            <div class="project-card-footer">
+              <span class="project-date">Edited ${dateStr}</span>
+              <a href="${projectUrl}" class="project-open-btn">
+                <span>Open</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </a>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Card click opens project with smooth loading transition
+      grid.querySelectorAll('.project-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.project-action-btn, .project-title-container')) return;
+          e.preventDefault();
+          const url = card.getAttribute('data-url');
+          const title = card.querySelector('.project-title')?.textContent || 'Project';
+          if (url) {
+            openWithLoader(url, 'OPENING PROJECT', `Loading «${title}» & audio waveforms...`);
+          }
+        });
+      });
+
+      // Inline renaming via pencil button or direct title click
+      function startCardRename(card) {
+        const titleEl = card.querySelector('.project-title');
+        const inputEl = card.querySelector('.project-title-input');
+        if (!titleEl || !inputEl || inputEl.style.display !== 'none') return;
+
+        const currentName = titleEl.textContent;
+        titleEl.style.display = 'none';
+        inputEl.style.display = 'block';
+        inputEl.value = currentName;
+        inputEl.focus();
+        inputEl.select();
+
+        let committed = false;
+        function commit() {
+          if (committed) return;
+          committed = true;
+          const id = inputEl.getAttribute('data-project-id');
+          const newName = (inputEl.value || '').trim();
+          inputEl.style.display = 'none';
+          titleEl.style.display = 'block';
+
+          if (newName && newName !== currentName) {
+            titleEl.textContent = newName;
+            titleEl.title = `Click to rename: ${newName}`;
+
+            const renameBtn = card.querySelector('.project-rename-btn');
+            const deleteBtn = card.querySelector('.project-delete-btn');
+            if (renameBtn) renameBtn.setAttribute('data-project-name', newName);
+            if (deleteBtn) deleteBtn.setAttribute('data-project-name', newName);
+
+            renameProjectInStorage(id, newName);
+            showActionToast('Project renamed');
+          }
+        }
+
+        function cancel() {
+          if (committed) return;
+          committed = true;
+          inputEl.style.display = 'none';
+          titleEl.style.display = 'block';
+          inputEl.value = currentName;
+        }
+
+        inputEl.onkeydown = (e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commit();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancel();
+          }
+        };
+
+        inputEl.onblur = () => {
+          commit();
+        };
+
+        inputEl.onclick = (e) => {
+          e.stopPropagation();
+        };
+      }
+
+      grid.querySelectorAll('.project-rename-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const card = btn.closest('.project-card');
+          if (card) startCardRename(card);
+        });
+      });
+
+      grid.querySelectorAll('.project-title').forEach(titleEl => {
+        titleEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const card = titleEl.closest('.project-card');
+          if (card) startCardRename(card);
+        });
+      });
+
+      // Delete button triggers custom styled modal dialog
+      grid.querySelectorAll('.project-delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const id = btn.getAttribute('data-delete-id');
+          const projectName = btn.getAttribute('data-project-name') || 'this project';
+          openDeleteModal(id, projectName);
+        });
+      });
+    }
+
+    /* Rename Persistence in LocalStorage and IndexedDB */
+    function renameProjectInStorage(id, newName) {
+      newName = (newName || '').trim();
+      if (!newName) return;
+
+      try {
+        let projects = JSON.parse(localStorage.getItem('muziro_projects') || '[]');
+        const idx = projects.findIndex(p => p.id === id);
+        if (idx !== -1) {
+          projects[idx].name = newName;
+          projects[idx].updatedAt = new Date().toISOString();
+          localStorage.setItem('muziro_projects', JSON.stringify(projects));
+        }
+      } catch (e) {
+        console.error('Failed to update localStorage on rename:', e);
+      }
+
+      // Update in IndexedDB MuziroDB
+      if (window.indexedDB) {
+        const req = indexedDB.open('MuziroDB', 1);
+        req.onsuccess = (e) => {
+          const db = e.target.result;
+          if (db.objectStoreNames.contains('projects')) {
+            const tx = db.transaction('projects', 'readwrite');
+            const store = tx.objectStore('projects');
+            const getReq = store.get(id);
+            getReq.onsuccess = () => {
+              const record = getReq.result;
+              if (record) {
+                record.name = newName;
+                record.updatedAt = Date.now();
+                store.put(record);
+              }
+            };
+          }
+        };
+      }
+    }
+
+    /* Custom Delete Confirmation Modal Logic */
+    let pendingDeleteId = null;
+
+    function openDeleteModal(id, projectName) {
+      pendingDeleteId = id;
+      const modal = document.getElementById('delete-modal-overlay');
+      const nameSpan = document.getElementById('delete-project-name');
+      if (nameSpan) {
+        nameSpan.textContent = projectName || 'this project';
+        nameSpan.title = projectName || '';
+      }
+      if (modal) {
+        modal.classList.add('is-active');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+      const cancelBtn = document.getElementById('delete-cancel-btn');
+      if (cancelBtn) cancelBtn.focus();
+    }
+
+    function closeDeleteModal() {
+      pendingDeleteId = null;
+      const modal = document.getElementById('delete-modal-overlay');
+      if (modal) {
+        modal.classList.remove('is-active');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    function confirmDeleteAction() {
+      if (!pendingDeleteId) return;
+      const idToDelete = pendingDeleteId;
+      closeDeleteModal();
+      deleteProject(idToDelete);
+      showActionToast('Project deleted');
+    }
+
+    function showActionToast(text = 'Saved') {
+      const toast = document.getElementById('delete-toast');
+      if (!toast) return;
+      const span = toast.querySelector('span');
+      if (span) span.textContent = text;
+      toast.classList.add('is-active');
+      clearTimeout(window._actionToastTimer);
+      window._actionToastTimer = setTimeout(() => {
+        toast.classList.remove('is-active');
+      }, 2200);
+    }
+
+    function deleteProject(id) {
+      try {
+        let projects = JSON.parse(localStorage.getItem('muziro_projects') || '[]');
+        projects = projects.filter(p => p.id !== id);
+        localStorage.setItem('muziro_projects', JSON.stringify(projects));
+        renderProjects();
+
+        // Also clean up raw audio buffers and project state from IndexedDB
+        if (window.indexedDB) {
+          const req = indexedDB.open('MuziroDB', 1);
+          req.onsuccess = (e) => {
+            const db = e.target.result;
+            if (db.objectStoreNames.contains('projects')) {
+              const tx = db.transaction('projects', 'readwrite');
+              tx.objectStore('projects').delete(id);
+            }
+          };
+        }
+      } catch (e) {
+        console.error('Failed to delete project:', e);
+      }
+    }
+
+    document.getElementById('delete-cancel-btn').addEventListener('click', closeDeleteModal);
+    document.getElementById('delete-confirm-btn').addEventListener('click', confirmDeleteAction);
+    document.getElementById('delete-modal-overlay').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('delete-modal-overlay')) {
+        closeDeleteModal();
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      const modal = document.getElementById('delete-modal-overlay');
+      if (!modal || !modal.classList.contains('is-active')) return;
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeDeleteModal();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        confirmDeleteAction();
+      }
+    });
+
+    function openWithLoader(url, title = 'INITIALIZING WORKSTATION', subtitle = 'Loading audio engine & multitrack canvas...') {
+      const loader = document.getElementById('page-loader-overlay');
+      const titleEl = document.getElementById('page-loader-title');
+      const subEl = document.getElementById('page-loader-sub');
+      if (titleEl) titleEl.textContent = title;
+      if (subEl) subEl.textContent = subtitle;
+      if (loader) {
+        loader.classList.add('is-active');
+        loader.setAttribute('aria-hidden', 'false');
+      }
+      setTimeout(() => {
+        window.location.href = url;
+      }, 70);
+    }
+
+    const newProjectBtn = document.getElementById('new-project-btn');
+    if (newProjectBtn) {
+      newProjectBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        newProjectBtn.classList.add('is-launching');
+        openWithLoader('process.html', 'INITIALIZING WORKSTATION', 'Creating blank multitrack session...');
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', renderProjects);
+    window.addEventListener('pageshow', () => {
+      const loader = document.getElementById('page-loader-overlay');
+      if (loader) {
+        loader.classList.remove('is-active');
+        loader.setAttribute('aria-hidden', 'true');
+      }
+      if (newProjectBtn) {
+        newProjectBtn.classList.remove('is-launching');
+      }
+      renderProjects();
+    });
+  </script>

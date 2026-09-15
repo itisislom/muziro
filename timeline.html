@@ -1,0 +1,5142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Muziro Timeline</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+    :root {
+      --header-bg: #f5f5f5;
+      --border-color: #e5e5e5;
+      --track-bg: #ffffff;
+      --ruler-height: 28px;
+      --track-info-width: clamp(200px, 22vw, 280px);
+      --track-height: clamp(70px, 7vw, 100px);
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f5f5f5;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cccccc;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #999999;
+    }
+    .timeline-root {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border: 1px solid var(--border-color);
+      border-radius: clamp(6px, 0.6vw, 10px);
+      background-color: var(--track-bg);
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* Left Column: Pinned Track Headers */
+    .timeline-left-column {
+      width: var(--track-info-width);
+      min-width: var(--track-info-width);
+      display: flex;
+      flex-direction: column;
+      background-color: var(--header-bg);
+      border-right: 1px solid var(--border-color);
+      z-index: 50;
+      flex-shrink: 0;
+    }
+    .ruler-corner {
+      height: var(--ruler-height);
+      min-height: var(--ruler-height);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding-left: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #888888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .track-headers-viewport {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .track-headers-list {
+      display: flex;
+      flex-direction: column;
+    }
+    @keyframes trackSelectPulse {
+      0% {
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3), 0 0 10px rgba(0, 0, 0, 0.08);
+      }
+      50% {
+        box-shadow: inset 0 0 0 3px #000000, 0 0 14px rgba(0, 0, 0, 0.12);
+      }
+      100% {
+        box-shadow: inset 0 0 0 2px #000000;
+      }
+    }
+
+    .track-info-card {
+      height: var(--track-height);
+      min-height: var(--track-height);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 10px 8px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background-color: var(--header-bg);
+      overflow: hidden;
+      position: relative;
+      cursor: grab;
+      user-select: none;
+      transition: background-color 0.15s ease;
+    }
+    .track-info-card:hover {
+      background-color: #efefef;
+    }
+    .track-drag-handle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 10px;
+      height: 24px;
+      color: #bbbbbb;
+      cursor: grab;
+      flex-shrink: 0;
+      transition: color 0.15s ease;
+      user-select: none;
+    }
+    .track-info-card:hover .track-drag-handle {
+      color: #555555;
+    }
+    .track-drag-handle:hover {
+      color: #000000;
+    }
+    .track-info-card.is-dragging-track {
+      opacity: 0.92;
+      z-index: 100;
+      background-color: #eaeaea !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      cursor: grabbing !important;
+      pointer-events: none;
+    }
+    .track-info-card.drop-before::before,
+    .track-wave-lane.drop-before::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background-color: #000000;
+      z-index: 80;
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+    }
+    .track-info-card.drop-after::after,
+    .track-wave-lane.drop-after::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background-color: #000000;
+      z-index: 80;
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+    }
+    .track-wave-lane.is-reordering {
+      opacity: 0.65;
+    }
+    .track-vol-block {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 4px;
+      flex-shrink: 0;
+      width: 76px;
+      user-select: none;
+    }
+    .track-vol-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+    .track-vol-caption {
+      font-size: 9px;
+      font-weight: 700;
+      color: #888888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .track-vol-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: ui-monospace, monospace;
+      color: #111111;
+      background-color: #e5e5e5;
+      padding: 1px 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      line-height: 1.2;
+    }
+    .track-vol-badge:hover {
+      background-color: #d8d8d8;
+      border-color: #bbbbbb;
+    }
+    .track-vol-input {
+      width: 36px;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: ui-monospace, monospace;
+      text-align: center;
+      color: #111111;
+      background-color: #ffffff;
+      border: 1px solid #000000;
+      border-radius: 4px;
+      padding: 0 2px;
+      outline: none;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+      -moz-appearance: textfield;
+      line-height: 1.2;
+    }
+    .track-vol-input::-webkit-outer-spin-button,
+    .track-vol-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .track-vol-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 3px;
+      background: #d4d4d4;
+      outline: none;
+      cursor: pointer;
+      margin: 2px 0;
+      transition: background 0.15s ease;
+    }
+    .track-vol-slider:hover {
+      background: #bebebe;
+    }
+    .track-vol-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #000000;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      transition: transform 0.1s ease;
+    }
+    .track-vol-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+    .track-vol-slider::-moz-range-thumb {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #000000;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    .track-details {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+      overflow: hidden;
+    }
+    .track-title {
+      font-size: clamp(11px, 0.8vw, 13px);
+      font-weight: 600;
+      color: #111111;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      padding: 2px 4px;
+      margin: -2px -4px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .track-title:hover {
+      background-color: #e4e4e4;
+      border-color: #cccccc;
+    }
+    .track-title-input {
+      font-family: inherit;
+      font-size: clamp(11px, 0.8vw, 13px);
+      font-weight: 600;
+      color: #111111;
+      background-color: #ffffff;
+      border: 1px solid #000000;
+      border-radius: 4px;
+      padding: 1px 4px;
+      margin: -2px -4px;
+      width: 100%;
+      box-sizing: border-box;
+      outline: none;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    }
+    .track-time {
+      font-size: 11px;
+      color: #777777;
+      font-family: ui-monospace, monospace;
+    }
+
+    /* Right Column: Scrollable Timeline Grid */
+    .timeline-right-column {
+      flex: 1;
+      height: 100%;
+      overflow: auto;
+      position: relative;
+      background-color: #ffffff;
+    }
+    .timeline-grid-content {
+      position: relative;
+      min-width: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .timeline-ruler-bar {
+      position: sticky;
+      top: 0;
+      height: var(--ruler-height);
+      min-height: var(--ruler-height);
+      background-color: var(--header-bg);
+      border-bottom: 1px solid var(--border-color);
+      z-index: 40;
+      cursor: ew-resize;
+      width: 100%;
+    }
+    .ruler-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .timeline-waves-list {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    .track-wave-lane {
+      height: var(--track-height);
+      min-height: var(--track-height);
+      border-bottom: 1px solid var(--border-color);
+      position: relative;
+      cursor: default;
+      width: 100%;
+      background-color: #ffffff;
+      overflow: hidden;
+    }
+    .track-wave-lane:nth-child(even) {
+      background-color: #fafafa;
+    }
+    .audio-clip {
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      background-color: #f7f7f7;
+      border: 1px solid #d4d4d4;
+      border-radius: 4px;
+      cursor: grab;
+      overflow: visible;
+      box-sizing: border-box;
+      transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .audio-clip:hover {
+      border-color: #999999;
+    }
+    .audio-clip:active {
+      cursor: grabbing;
+    }
+    .audio-clip.is-selected {
+      background-color: #f0f0f0;
+      border-color: #000000;
+      box-shadow: 0 0 0 1.5px #000000, 0 2px 6px rgba(0, 0, 0, 0.12);
+      animation: trackSelectPulse 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 10;
+    }
+    .audio-clip.is-dragging {
+      opacity: 0.88;
+      z-index: 1000 !important;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+      border-color: #000000;
+      cursor: grabbing !important;
+      pointer-events: none;
+      transition: none !important;
+    }
+    .track-wave-lane.drop-target {
+      background-color: #f2f2f2 !important;
+      box-shadow: inset 0 0 0 2px #000000 !important;
+    }
+    .new-track-indicator {
+      display: none;
+      height: clamp(34px, 3.8vw, 44px);
+      margin: 6px 8px;
+      border: 2px dashed #000000;
+      border-radius: 6px;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #000000;
+      background-color: #f5f5f5;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .new-track-indicator.is-active {
+      display: flex;
+      background-color: #ebebeb;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      animation: trackSelectPulse 0.8s infinite alternate;
+    }
+    .timeline-marquee-selection {
+      position: absolute;
+      pointer-events: none;
+      z-index: 250;
+      background: rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(0, 0, 0, 0.7);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+      border-radius: 0px;
+      display: none;
+    }
+    .clip-header-tag {
+      position: absolute;
+      top: 3px;
+      left: 6px;
+      font-size: 9px;
+      font-weight: 700;
+      font-family: ui-monospace, monospace;
+      color: #666666;
+      background-color: rgba(255, 255, 255, 0.88);
+      padding: 1px 4px;
+      border-radius: 2px;
+      pointer-events: none;
+      z-index: 2;
+      line-height: 1;
+      max-width: 90%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .audio-clip.is-selected .clip-header-tag {
+      color: #000000;
+      background-color: #ffffff;
+      font-weight: 800;
+    }
+    .clip-waveform-container {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: 3px;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .clip-waveform-canvas {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      height: 100%;
+      border-radius: 3px;
+      display: block;
+      pointer-events: none;
+    }
+    /* DaVinci Resolve Fade Overlays & Handles */
+    .clip-fade-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 3px;
+      pointer-events: none;
+      z-index: 5;
+      overflow: hidden;
+    }
+    .clip-fade-in-path,
+    .clip-fade-out-path {
+      fill: rgba(0, 0, 0, 0.22);
+      stroke: #000000;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .clip-fade-handle {
+      position: absolute;
+      top: -5px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #000000;
+      border: 1.5px solid #ffffff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+      cursor: ew-resize;
+      z-index: 25;
+      opacity: 0;
+      transform: translateX(-50%);
+      transition: opacity 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+      touch-action: none;
+      user-select: none;
+    }
+    .audio-clip:hover .clip-fade-handle,
+    .audio-clip.is-selected .clip-fade-handle,
+    .clip-fade-handle.is-dragging,
+    .clip-fade-handle.has-fade {
+      opacity: 1;
+    }
+    .clip-fade-handle:hover,
+    .clip-fade-handle.is-dragging {
+      transform: translateX(-50%) scale(1.3);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+      background-color: #000000;
+    }
+
+    /* Middle Fade Curve Tension Handle */
+    .fade-curve-handle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #000000;
+      border: 1.5px solid #ffffff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+      cursor: ns-resize;
+      z-index: 26;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: opacity 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+      touch-action: none;
+      user-select: none;
+    }
+    .fade-curve-handle.has-fade {
+      pointer-events: auto;
+    }
+    .audio-clip:hover .fade-curve-handle.has-fade,
+    .audio-clip.is-selected .fade-curve-handle.has-fade,
+    .fade-curve-handle.is-dragging {
+      opacity: 1;
+    }
+    .fade-curve-handle:hover,
+    .fade-curve-handle.is-dragging {
+      transform: translate(-50%, -50%) scale(1.4);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.75);
+      background-color: #000000;
+    }
+    .fade-curve-handle:hover .clip-fade-tooltip,
+    .fade-curve-handle.is-dragging .clip-fade-tooltip {
+      opacity: 1;
+    }
+    .clip-fade-tooltip {
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #000000;
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 700;
+      font-family: ui-monospace, monospace;
+      padding: 1px 5px;
+      border-radius: 3px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      transition: opacity 0.12s ease;
+      z-index: 30;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .clip-fade-handle:hover .clip-fade-tooltip,
+    .clip-fade-handle.is-dragging .clip-fade-tooltip {
+      opacity: 1;
+    }
+
+    /* Video-Editing Style Edge Trimming Handles */
+    .clip-trim-handle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 10px;
+      max-width: 35%;
+      z-index: 22;
+      cursor: col-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      touch-action: none;
+    }
+    .trim-handle-left {
+      left: 0;
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+    }
+    .trim-handle-right {
+      right: 0;
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
+    }
+    .clip-trim-handle::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: transparent;
+      transition: background-color 0.15s ease;
+    }
+    .clip-trim-handle::after {
+      content: '';
+      position: relative;
+      z-index: 1;
+      width: 3px;
+      height: 18px;
+      border-radius: 2px;
+      background-color: #000000;
+      opacity: 0;
+      transform: scaleY(0.6);
+      transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+    }
+    .audio-clip:hover .clip-trim-handle::after,
+    .audio-clip.is-selected .clip-trim-handle::after {
+      opacity: 0.45;
+      transform: scaleY(1);
+    }
+    .clip-trim-handle:hover::before,
+    .clip-trim-handle.is-dragging::before {
+      background-color: rgba(0, 0, 0, 0.08);
+    }
+    .clip-trim-handle:hover::after,
+    .clip-trim-handle.is-dragging::after {
+      opacity: 1;
+      transform: scaleY(1.4);
+      background-color: #000000;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.35);
+    }
+    .clip-trim-tooltip {
+      position: absolute;
+      bottom: calc(100% + 5px);
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #000000;
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 700;
+      font-family: ui-monospace, monospace;
+      padding: 1px 5px;
+      border-radius: 3px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      transition: opacity 0.12s ease;
+      z-index: 30;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .clip-trim-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 3px;
+      border-style: solid;
+      border-color: #000000 transparent transparent transparent;
+    }
+    .clip-trim-handle.is-dragging .clip-trim-tooltip {
+      opacity: 1;
+    }
+    .audio-clip.is-trimming {
+      box-shadow: 0 0 0 2px #000000, 0 4px 14px rgba(0, 0, 0, 0.22) !important;
+      z-index: 15 !important;
+    }
+
+    /* Global Playhead */
+    .global-playhead {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 2px;
+      background-color: #000000;
+      pointer-events: auto;
+      cursor: ew-resize;
+      z-index: 45;
+      display: none;
+      transform: translateX(-1px);
+    }
+    .global-playhead::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -5px;
+      width: 12px;
+      height: 14px;
+      background-color: #000000;
+      clip-path: polygon(0 0, 100% 0, 50% 100%);
+      cursor: ew-resize;
+    }
+    .empty-state {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999999;
+      font-size: 13px;
+      font-weight: 500;
+      pointer-events: none;
+    }
+    /* Add Track Button on Left Column */
+    .add-track-section {
+      padding: 10px 10px 16px 10px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .add-track-btn-group {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 36px;
+      border-radius: 6px;
+      border: 1px dashed #b8b8b8;
+      background: #ffffff;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      position: relative;
+    }
+    .add-track-btn-group:hover,
+    .add-track-btn-group.is-dragover {
+      border-color: #000000;
+      border-style: solid;
+      background: #fafafa;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+      transform: translateY(-1px);
+    }
+    .add-audio-track-btn {
+      flex: 1;
+      height: 100%;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      background: transparent;
+      border: none;
+      color: #111111;
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s ease;
+      white-space: nowrap;
+    }
+    .add-audio-track-btn svg {
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      flex-shrink: 0;
+    }
+    .add-track-btn-group:hover .add-audio-track-btn svg {
+      transform: rotate(90deg) scale(1.1);
+      color: #000000;
+    }
+    .add-track-dropdown-btn {
+      width: 28px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      border-left: 1px solid #e5e5e5;
+      color: #666666;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+      border-top-right-radius: 5px;
+      border-bottom-right-radius: 5px;
+    }
+    .add-track-dropdown-btn:hover {
+      background: #eeeeee;
+      color: #000000;
+    }
+    .add-track-menu {
+      position: absolute;
+      top: calc(100% - 8px);
+      left: 10px;
+      right: 10px;
+      background: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+      padding: 4px;
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .add-track-menu.is-open {
+      display: flex;
+      animation: fadeInTrackMenu 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes fadeInTrackMenu {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .add-track-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 4px;
+      background: transparent;
+      border: none;
+      color: #222222;
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: background-color 0.12s ease;
+      width: 100%;
+    }
+    .add-track-menu-item:hover {
+      background: #f0f0f0;
+      color: #000000;
+    }
+    .empty-lane-placeholder {
+      position: absolute;
+      inset: 8px 16px;
+      border: 1.5px dashed #cccccc;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #777777;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(250, 250, 250, 0.65);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.18s ease;
+      z-index: 2;
+    }
+    .empty-lane-placeholder:hover {
+      border-color: #000000;
+      border-style: solid;
+      color: #000000;
+      background: #f4f4f4;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    /* Full-Screen Blur Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  backdrop-filter 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  visibility 0.3s ease;
+    }
+    .loading-overlay.is-active {
+      opacity: 1;
+      pointer-events: auto;
+      visibility: visible;
+    }
+    .loading-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 26px 36px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.04);
+      transform: scale(0.92) translateY(6px);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .loading-overlay.is-active .loading-card {
+      transform: scale(1) translateY(0);
+    }
+    .loading-spinner {
+      animation: spinnerRotate 1.2s linear infinite;
+    }
+    .spinner-head {
+      stroke-dasharray: 80, 120;
+      stroke-dashoffset: 0;
+      animation: spinnerDash 1.2s ease-in-out infinite;
+    }
+    @keyframes spinnerRotate {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    @keyframes spinnerDash {
+      0% {
+        stroke-dasharray: 1, 120;
+        stroke-dashoffset: 0;
+      }
+      50% {
+        stroke-dasharray: 75, 120;
+        stroke-dashoffset: -25;
+      }
+      100% {
+        stroke-dasharray: 75, 120;
+        stroke-dashoffset: -100;
+      }
+    }
+    .loading-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111111;
+      letter-spacing: 0.3px;
+      text-align: center;
+    }
+
+    /* Track Delete Button in Header Card */
+    .track-delete-btn {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      color: #888888;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      padding: 0;
+      opacity: 0.5;
+    }
+    .track-info-card:hover .track-delete-btn {
+      opacity: 1;
+    }
+    .track-delete-btn:hover {
+      background-color: #fee2e2;
+      color: #dc2626;
+      transform: scale(1.1);
+    }
+    .track-delete-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Delete Confirmation Modal */
+    .confirm-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10001;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+      transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                  backdrop-filter 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                  visibility 0.22s ease;
+    }
+    .confirm-modal-overlay.is-active {
+      opacity: 1;
+      pointer-events: auto;
+      visibility: visible;
+    }
+    .confirm-modal-card {
+      width: 90%;
+      max-width: 340px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.18), 0 2px 10px rgba(0, 0, 0, 0.06);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 16px;
+      transform: scale(0.92) translateY(8px);
+      transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .confirm-modal-overlay.is-active .confirm-modal-card {
+      transform: scale(1) translateY(0);
+    }
+    .confirm-modal-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #fee2e2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #dc2626;
+    }
+    .confirm-modal-content {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .confirm-modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111111;
+    }
+    .confirm-modal-text {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: #666666;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+    .confirm-modal-actions {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      margin-top: 4px;
+    }
+    .confirm-modal-btn {
+      flex: 1;
+      height: 38px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      font-family: inherit;
+    }
+    .confirm-modal-btn.btn-cancel {
+      background: #f2f2f2;
+      color: #333333;
+    }
+    .confirm-modal-btn.btn-cancel:hover {
+      background: #e5e5e5;
+      color: #000000;
+    }
+    .confirm-modal-btn.btn-delete {
+      background: #dc2626;
+      color: #ffffff;
+    }
+    .confirm-modal-btn.btn-delete:hover {
+      background: #b91c1c;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    }
+
+    /* Toast Notification for Undo / Redo */
+    .timeline-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 24px;
+      background: rgba(17, 17, 17, 0.92);
+      color: #ffffff;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      opacity: 0;
+      transform: translateY(8px) scale(0.96);
+      pointer-events: none;
+      transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 10000;
+    }
+    .timeline-toast.is-active {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  </style>
+</head>
+<body>
+  <div class="timeline-root" id="timeline-root">
+    <!-- Left Column: Fixed headers (never overlaps with waveform) -->
+    <div class="timeline-left-column">
+      <div class="ruler-corner">Tracks</div>
+      <div class="track-headers-viewport" id="track-headers-viewport">
+        <div class="track-headers-list" id="track-headers-list"></div>
+        <div class="add-track-section" id="add-track-section">
+          <div class="add-track-btn-group" id="add-track-btn-group">
+            <button class="add-audio-track-btn" id="add-audio-track-btn" title="Add Audio Track (Click to import audio file)">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                <line x1="7" y1="1" x2="7" y2="13"></line>
+                <line x1="1" y1="7" x2="13" y2="7"></line>
+              </svg>
+              <span>Add Audio Track</span>
+            </button>
+            <button class="add-track-dropdown-btn" id="add-track-dropdown-btn" title="Track options" aria-label="Track options">
+              <svg width="8" height="5" viewBox="0 0 10 6" fill="currentColor">
+                <path d="M0 0l5 6 5-6z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="add-track-menu" id="add-track-menu">
+            <button class="add-track-menu-item" id="menu-import-audio">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <span>Import Audio File...</span>
+            </button>
+            <button class="add-track-menu-item" id="menu-empty-track">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="7" y1="2" x2="7" y2="12"></line>
+                <line x1="2" y1="7" x2="12" y2="7"></line>
+              </svg>
+              <span>Add Empty Track</span>
+            </button>
+          </div>
+          <input type="file" id="add-track-file-input" accept="audio/*" style="display: none;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Scrollable time grid & waveforms -->
+    <div class="timeline-right-column" id="timeline-right-column">
+      <div class="timeline-grid-content" id="timeline-grid-content">
+        <div class="timeline-ruler-bar" id="timeline-ruler-bar">
+          <canvas class="ruler-canvas" id="ruler-canvas"></canvas>
+        </div>
+
+        <div class="timeline-waves-list" id="timeline-waves-list"></div>
+        <div class="new-track-indicator" id="new-track-indicator">+ Drop here to create new track</div>
+        <div class="empty-state" id="empty-state">No tracks added yet</div>
+        <div class="global-playhead" id="global-playhead"></div>
+        <div class="timeline-marquee-selection" id="timeline-marquee-selection"></div>
+      </div>
+    </div>
+
+    <!-- Full-Screen Blur Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay" aria-live="polite" aria-hidden="true">
+      <div class="loading-card">
+        <svg class="loading-spinner" width="44" height="44" viewBox="0 0 44 44">
+          <circle class="spinner-track" cx="22" cy="22" r="18" fill="none" stroke="rgba(0, 0, 0, 0.08)" stroke-width="3.5" />
+          <circle class="spinner-head" cx="22" cy="22" r="18" fill="none" stroke="#000000" stroke-width="3.5" stroke-linecap="round" />
+        </svg>
+        <div class="loading-label" id="loading-label">Loading track...</div>
+      </div>
+    </div>
+
+    <!-- Delete Track Confirmation Modal -->
+    <div class="confirm-modal-overlay" id="confirm-modal-overlay" aria-hidden="true">
+      <div class="confirm-modal-card">
+        <div class="confirm-modal-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        </div>
+        <div class="confirm-modal-content">
+          <div class="confirm-modal-title">Delete Track?</div>
+          <div class="confirm-modal-text" id="confirm-modal-text">Are you sure you want to delete this audio track?</div>
+        </div>
+        <div class="confirm-modal-actions">
+          <button class="confirm-modal-btn btn-cancel" id="confirm-modal-cancel">Cancel</button>
+          <button class="confirm-modal-btn btn-delete" id="confirm-modal-confirm">Delete</button>
+        </div>
+      </div>
+    </div>
+  <!-- Muziro Audio Export Modules -->
+  <script src="functions/export/lame.min.js"></script>
+  <script src="functions/export/export.js"></script>
+
+  <script>
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const tracks = []; // { id, name, duration, buffer, canvas }
+    let maxDuration = 0;
+    let freeTimelineDuration = 0;
+    let isPlaying = false;
+    let startTime = 0;
+    let currentPlayheadTime = 0;
+    let animFrame = null;
+    let activeSources = [];
+    let zoomLevel = 1.0; // 1.0 to 30.0
+
+    const rightColumn = document.getElementById('timeline-right-column');
+    const gridContent = document.getElementById('timeline-grid-content');
+    const headersViewport = document.getElementById('track-headers-viewport');
+    const headersList = document.getElementById('track-headers-list');
+    const wavesList = document.getElementById('timeline-waves-list');
+    const rulerBar = document.getElementById('timeline-ruler-bar');
+    const rulerCanvas = document.getElementById('ruler-canvas');
+    const rulerCtx = rulerCanvas.getContext('2d');
+    const globalPlayhead = document.getElementById('global-playhead');
+    const emptyState = document.getElementById('empty-state');
+    const newTrackIndicator = document.getElementById('new-track-indicator');
+    const marqueeEl = document.getElementById('timeline-marquee-selection');
+
+    // Sync vertical scroll between headers and right column
+    rightColumn.addEventListener('scroll', () => {
+      headersViewport.scrollTop = rightColumn.scrollTop;
+    });
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      const ms = Math.floor((seconds % 1) * 10);
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${ms}`;
+    }
+
+    function applyZoom() {
+      const viewportWidth = rightColumn.clientWidth;
+      const baseWidth = Math.max(100, viewportWidth);
+      const laneWidth = Math.round(baseWidth * zoomLevel);
+
+      if (zoomLevel <= 1.001) {
+        gridContent.style.width = '100%';
+      } else {
+        gridContent.style.width = laneWidth + 'px';
+      }
+
+      redrawAll();
+    }
+
+    function updateRuler() {
+      const rect = rulerBar.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+      if (w <= 0 || h <= 0) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      rulerCanvas.width = Math.round(w * dpr);
+      rulerCanvas.height = Math.round(h * dpr);
+      rulerCtx.resetTransform ? rulerCtx.resetTransform() : rulerCtx.setTransform(1, 0, 0, 1, 0, 0);
+      rulerCtx.scale(dpr, dpr);
+
+      rulerCtx.clearRect(0, 0, w, h);
+      if (maxDuration <= 0) return;
+
+      const pixelsPerSec = w / maxDuration;
+      let step = 5;
+      if (pixelsPerSec < 8) step = 30;
+      else if (pixelsPerSec < 20) step = 10;
+      else if (pixelsPerSec < 50) step = 5;
+      else if (pixelsPerSec < 120) step = 2;
+      else if (pixelsPerSec < 300) step = 1;
+      else if (pixelsPerSec < 700) step = 0.5;
+      else step = 0.1;
+
+      rulerCtx.fillStyle = '#666666';
+      rulerCtx.font = '10px ui-monospace, monospace';
+      rulerCtx.textAlign = 'center';
+
+      for (let sec = 0; sec <= maxDuration + step; sec += step) {
+        const x = (sec / maxDuration) * w;
+        if (x > w) break;
+
+        rulerCtx.fillStyle = '#cccccc';
+        rulerCtx.fillRect(x, h - 8, 1, 8);
+
+        rulerCtx.fillStyle = '#666666';
+        const mins = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        const sub = Math.floor((sec % 1) * 10);
+        const label = step < 1 ? `${mins}:${String(s).padStart(2, '0')}.${sub}` : `${mins}:${String(s).padStart(2, '0')}`;
+        rulerCtx.fillText(label, x, h - 12);
+      }
+    }
+
+    function showLoadingOverlay(text = 'Loading track...') {
+      const overlay = document.getElementById('loading-overlay');
+      const label = document.getElementById('loading-label');
+      if (label && text) label.textContent = text;
+      if (overlay) {
+        overlay.classList.add('is-active');
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+    }
+
+    function hideLoadingOverlay() {
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) {
+        overlay.classList.remove('is-active');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    function waitRenderFrame() {
+      return new Promise(resolve => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 80);
+        });
+      });
+    }
+
+    async function addTrack(fileBuffer, name) {
+      showLoadingOverlay('Decoding audio...');
+      notifyParent('LOADING_START', { text: 'Decoding audio...' });
+      await waitRenderFrame();
+
+      try {
+        const decodedBuffer = await audioContext.decodeAudioData(fileBuffer);
+        pushHistorySnapshot();
+        const trackId = 'track_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = 1.0;
+        gainNode.connect(audioContext.destination);
+
+        const clipId = 'clip_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        const initialClip = {
+          id: clipId,
+          name: name,
+          startTime: 0,
+          duration: decodedBuffer.duration,
+          buffer: decodedBuffer,
+          sourceBuffer: decodedBuffer,
+          sourceOffset: 0,
+          fadeIn: 0,
+          fadeOut: 0
+        };
+
+        const track = {
+          id: trackId,
+          name: name,
+          duration: decodedBuffer.duration,
+          gainNode: gainNode,
+          volume: 100,
+          clips: [initialClip]
+        };
+
+        tracks.push(track);
+        recalcMaxDuration();
+
+        emptyState.style.display = 'none';
+        globalPlayhead.style.display = 'block';
+
+        renderTrackRow(track);
+        applyZoom();
+        selectClip(clipId);
+
+        setTimeout(() => {
+          rightColumn.scrollTop = rightColumn.scrollHeight;
+          headersViewport.scrollTop = rightColumn.scrollTop;
+        }, 30);
+
+        return track;
+      } finally {
+        hideLoadingOverlay();
+        notifyParent('LOADING_END');
+      }
+    }
+
+    function createEmptyTrack(name) {
+      pushHistorySnapshot();
+      const trackNum = tracks.length + 1;
+      const trackName = name || `Track ${trackNum}`;
+      const trackId = 'track_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = 1.0;
+      gainNode.connect(audioContext.destination);
+
+      const track = {
+        id: trackId,
+        name: trackName,
+        duration: 0,
+        gainNode: gainNode,
+        volume: 100,
+        clips: []
+      };
+
+      tracks.push(track);
+      recalcMaxDuration();
+
+      emptyState.style.display = 'none';
+      globalPlayhead.style.display = 'block';
+
+      renderTrackRow(track);
+      applyZoom();
+      notifyParent('TRACK_ADDED', { count: tracks.length, id: trackId });
+
+      setTimeout(() => {
+        rightColumn.scrollTop = rightColumn.scrollHeight;
+        headersViewport.scrollTop = rightColumn.scrollTop;
+      }, 30);
+
+      return track;
+    }
+
+    async function loadAudioFile(file, targetTrack = null) {
+      if (!file) return;
+      showLoadingOverlay('Loading audio...');
+      notifyParent('LOADING_START', { text: 'Loading audio...' });
+      await waitRenderFrame();
+
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        if (targetTrack && targetTrack.clips.length === 0) {
+          const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          pushHistorySnapshot();
+          const clipId = 'clip_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+          const clip = {
+            id: clipId,
+            name: file.name,
+            startTime: 0,
+            duration: decodedBuffer.duration,
+            buffer: decodedBuffer,
+            sourceBuffer: decodedBuffer,
+            sourceOffset: 0,
+            fadeIn: 0,
+            fadeOut: 0
+          };
+          targetTrack.clips.push(clip);
+          if (targetTrack.name.startsWith('Track ')) {
+            targetTrack.name = file.name;
+            const h = document.getElementById(`header-${targetTrack.id}`);
+            if (h) {
+              const titleEl = h.querySelector('.track-title');
+              if (titleEl) {
+                titleEl.textContent = file.name;
+                titleEl.title = `Click to rename: ${file.name}`;
+              }
+            }
+          }
+          recalcMaxDuration();
+          renderTrackClips(targetTrack);
+          applyZoom();
+          selectClip(clipId);
+          notifyParent('TRACK_ADDED', { count: tracks.length, id: targetTrack.id });
+        } else {
+          await addTrack(arrayBuffer, file.name);
+          notifyParent('TRACK_ADDED', { count: tracks.length });
+        }
+
+        setTimeout(() => {
+          rightColumn.scrollTop = rightColumn.scrollHeight;
+          headersViewport.scrollTop = rightColumn.scrollTop;
+        }, 30);
+      } catch (err) {
+        console.error('Failed to load audio file:', err);
+      } finally {
+        hideLoadingOverlay();
+        notifyParent('LOADING_END');
+      }
+    }
+
+    function recalcMaxDuration() {
+      let maxClipEnd = 0;
+      tracks.forEach(t => {
+        let trackMax = 0;
+        t.clips.forEach(c => {
+          const end = (c.startTime || 0) + (c.duration || 0);
+          if (end > maxClipEnd) maxClipEnd = end;
+          if (end > trackMax) trackMax = end;
+        });
+        t.duration = trackMax;
+        const headerEl = document.getElementById(`header-${t.id}`);
+        if (headerEl) {
+          const timeEl = headerEl.querySelector('.track-time');
+          if (timeEl) timeEl.textContent = formatTime(trackMax);
+        }
+      });
+
+      if (tracks.length === 0) {
+        maxDuration = 0;
+        freeTimelineDuration = 0;
+        return;
+      }
+
+      // Free Timeline Engine:
+      // Minimum free timeline duration is at least 60s, or max clip end + 20% breathing room.
+      // Crucially, freeTimelineDuration never shrinks when clips are cut or deleted,
+      // ensuring the visual scale remains rock-solid and clips never stretch or inflate.
+      const targetDuration = Math.max(60, maxClipEnd * 1.2);
+      freeTimelineDuration = Math.max(freeTimelineDuration, targetDuration, maxClipEnd + 5);
+      maxDuration = freeTimelineDuration;
+    }
+
+    function createTrackRowElements(track) {
+      // 1. Add Header in left column
+      const headerCard = document.createElement('div');
+      headerCard.className = 'track-info-card';
+      headerCard.id = `header-${track.id}`;
+      headerCard.innerHTML = `
+        <div class="track-drag-handle" title="Drag up or down to reorder tracks">
+          <svg width="6" height="14" viewBox="0 0 6 14" fill="currentColor">
+            <circle cx="1.5" cy="2" r="1.2"/>
+            <circle cx="4.5" cy="2" r="1.2"/>
+            <circle cx="1.5" cy="7" r="1.2"/>
+            <circle cx="4.5" cy="7" r="1.2"/>
+            <circle cx="1.5" cy="12" r="1.2"/>
+            <circle cx="4.5" cy="12" r="1.2"/>
+          </svg>
+        </div>
+        <div class="track-vol-block">
+          <div class="track-vol-header">
+            <span class="track-vol-caption">Vol</span>
+            <div class="track-vol-badge" title="Click to enter volume: 0 - 100 (current: ${track.volume}%)">
+              <span class="track-vol-text">${track.volume}%</span>
+            </div>
+          </div>
+          <input type="range" class="track-vol-slider" min="0" max="100" value="${track.volume}" title="Volume: ${track.volume}%">
+        </div>
+        <div class="track-details">
+          <div class="track-title" title="Click to rename: ${track.name}">${track.name}</div>
+          <div class="track-time">${formatTime(track.duration)}</div>
+        </div>
+        <button class="track-delete-btn" title="Delete track" aria-label="Delete track">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        </button>
+      `;
+
+      headerCard.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        if (e.target.closest('input, .track-vol-badge, .track-title-input, .track-delete-btn')) return;
+
+        trackDragInitialSnapshot = captureSnapshot();
+        draggedTrack = track;
+        trackDragStartY = e.clientY;
+        isDraggingTrack = false;
+        targetTrack = null;
+        targetPlacement = null;
+
+        window.addEventListener('mousemove', onTrackDragMove);
+        window.addEventListener('mouseup', onTrackDragEnd);
+      });
+
+      const deleteBtn = headerCard.querySelector('.track-delete-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          confirmDeleteTrack(track);
+        });
+      }
+
+      const volSlider = headerCard.querySelector('.track-vol-slider');
+      const volBadge = headerCard.querySelector('.track-vol-badge');
+      const volText = headerCard.querySelector('.track-vol-text');
+
+      function updateTrackVolume(rawVal) {
+        let num = parseInt(rawVal, 10);
+        if (isNaN(num)) num = track.volume;
+        const clamped = Math.max(0, Math.min(100, num));
+        track.volume = clamped;
+        volSlider.value = clamped;
+        volSlider.title = `Volume: ${clamped}%`;
+        volBadge.title = `Click to enter volume: 0 - 100 (current: ${clamped}%)`;
+        volText.textContent = `${clamped}%`;
+        if (track.gainNode) {
+          track.gainNode.gain.setTargetAtTime(clamped / 100, audioContext.currentTime, 0.01);
+        }
+      }
+
+      let volSliderInitialSnapshot = null;
+      volSlider.addEventListener('mousedown', () => {
+        volSliderInitialSnapshot = captureSnapshot();
+      });
+      volSlider.addEventListener('input', (e) => {
+        updateTrackVolume(e.target.value);
+      });
+      volSlider.addEventListener('change', () => {
+        if (volSliderInitialSnapshot) {
+          const oldTrackData = volSliderInitialSnapshot.tracks.find(t => t.id === track.id);
+          if (oldTrackData && oldTrackData.volume !== track.volume) {
+            undoStack.push(volSliderInitialSnapshot);
+            if (undoStack.length > MAX_HISTORY_STEPS) undoStack.shift();
+            redoStack.length = 0;
+            notifyParent('HISTORY_STATE', { canUndo: true, canRedo: false });
+          }
+          volSliderInitialSnapshot = null;
+        }
+        volSlider.blur();
+      });
+      volSlider.addEventListener('mouseup', () => {
+        volSlider.blur();
+      });
+
+      volBadge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (volBadge.querySelector('input')) return;
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'track-vol-input';
+        input.min = '0';
+        input.max = '100';
+        input.value = track.volume;
+
+        let committed = false;
+        function commitInput() {
+          if (committed) return;
+          committed = true;
+          let num = parseInt(input.value, 10);
+          if (!isNaN(num)) {
+            num = Math.max(0, Math.min(100, num));
+            if (num !== track.volume) {
+              pushHistorySnapshot();
+            }
+          }
+          updateTrackVolume(input.value);
+          volBadge.textContent = '';
+          volBadge.appendChild(volText);
+          volText.textContent = `${track.volume}%`;
+        }
+
+        function cancelInput() {
+          if (committed) return;
+          committed = true;
+          volBadge.textContent = '';
+          volBadge.appendChild(volText);
+          volText.textContent = `${track.volume}%`;
+        }
+
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            commitInput();
+          } else if (ev.key === 'Escape') {
+            ev.preventDefault();
+            cancelInput();
+          }
+        });
+
+        input.addEventListener('blur', () => {
+          commitInput();
+        });
+
+        volBadge.textContent = '';
+        volBadge.appendChild(input);
+        input.focus();
+        input.select();
+      });
+
+      const titleEl = headerCard.querySelector('.track-title');
+      titleEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (wasDraggingTrackJustNow || isDraggingTrack) return;
+        if (titleEl.querySelector('input')) return;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'track-title-input';
+        input.value = track.name;
+
+        let committed = false;
+        function commit() {
+          if (committed) return;
+          committed = true;
+          const newName = input.value.trim();
+          if (newName && newName !== track.name) {
+            pushHistorySnapshot();
+            track.name = newName;
+          }
+          titleEl.textContent = track.name;
+          titleEl.title = `Click to rename: ${track.name}`;
+          notifyParent('TRACK_RENAMED', { id: track.id, name: track.name });
+        }
+
+        function cancel() {
+          if (committed) return;
+          committed = true;
+          titleEl.textContent = track.name;
+          titleEl.title = `Click to rename: ${track.name}`;
+        }
+
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            commit();
+          } else if (ev.key === 'Escape') {
+            ev.preventDefault();
+            cancel();
+          }
+        });
+
+        input.addEventListener('blur', () => {
+          commit();
+        });
+
+        titleEl.textContent = '';
+        titleEl.appendChild(input);
+        input.focus();
+        input.select();
+      });
+
+      // 2. Add Waveform Lane in right column
+      const waveLane = document.createElement('div');
+      waveLane.className = 'track-wave-lane';
+      waveLane.id = `lane-${track.id}`;
+      track.waveLane = waveLane;
+
+      renderTrackClips(track);
+
+      waveLane.addEventListener('click', (e) => {
+        if (wasMarqueeDraggingJustNow || wasDraggingFadeJustNow || wasDraggingFadeCurveJustNow || wasDraggingClipJustNow || wasDraggingTrackJustNow) return;
+        // Only seek if clicking empty space directly on the lane itself, NEVER when clicking clips or handles
+        if (e.target !== waveLane) return;
+        clearClipSelection();
+        const rect = waveLane.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const totalW = waveLane.offsetWidth;
+        const clickRatio = Math.max(0, Math.min(1, clickX / totalW));
+        const seekTime = clickRatio * maxDuration;
+        seekTo(seekTime);
+      });
+
+      return { header: headerCard, lane: waveLane };
+    }
+
+    let draggedTrack = null;
+    let trackDragStartY = 0;
+    let isDraggingTrack = false;
+    let wasDraggingTrackJustNow = false;
+    let targetTrack = null;
+    let targetPlacement = null;
+
+    function clearTrackDropIndicators() {
+      tracks.forEach(t => {
+        const h = document.getElementById(`header-${t.id}`);
+        if (h) h.classList.remove('drop-before', 'drop-after');
+        if (t.waveLane) t.waveLane.classList.remove('drop-before', 'drop-after');
+      });
+    }
+
+    function onTrackDragMove(e) {
+      if (!draggedTrack || !e || e.clientY === undefined) return;
+      const headerEl = document.getElementById(`header-${draggedTrack.id}`);
+      if (!headerEl) return;
+
+      const dy = e.clientY - trackDragStartY;
+
+      if (!isDraggingTrack && Math.abs(dy) > 4) {
+        isDraggingTrack = true;
+        wasDraggingTrackJustNow = true;
+        headerEl.classList.add('is-dragging-track');
+        if (draggedTrack.waveLane) draggedTrack.waveLane.classList.add('is-reordering');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'grabbing';
+      }
+
+      if (!isDraggingTrack) return;
+
+      headerEl.style.transform = `translateY(${dy}px)`;
+
+      clearTrackDropIndicators();
+      targetTrack = null;
+      targetPlacement = null;
+
+      // Auto-scroll headersViewport and rightColumn if near edges
+      const vpRect = headersViewport.getBoundingClientRect();
+      if (e.clientY < vpRect.top + 25) {
+        headersViewport.scrollTop -= 8;
+        rightColumn.scrollTop = headersViewport.scrollTop;
+      } else if (e.clientY > vpRect.bottom - 25) {
+        headersViewport.scrollTop += 8;
+        rightColumn.scrollTop = headersViewport.scrollTop;
+      }
+
+      for (let i = 0; i < tracks.length; i++) {
+        const t = tracks[i];
+        if (t === draggedTrack) continue;
+        const hCard = document.getElementById(`header-${t.id}`);
+        if (!hCard) continue;
+
+        const rect = hCard.getBoundingClientRect();
+        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          const midY = rect.top + rect.height / 2;
+          targetTrack = t;
+          if (e.clientY < midY) {
+            targetPlacement = 'before';
+            hCard.classList.add('drop-before');
+            if (t.waveLane) t.waveLane.classList.add('drop-before');
+          } else {
+            targetPlacement = 'after';
+            hCard.classList.add('drop-after');
+            if (t.waveLane) t.waveLane.classList.add('drop-after');
+          }
+          break;
+        }
+      }
+
+      // If dragged above the first track or below the last track
+      if (!targetTrack && tracks.length > 0) {
+        const otherTracks = tracks.filter(t => t !== draggedTrack);
+        if (otherTracks.length > 0) {
+          const firstCard = document.getElementById(`header-${otherTracks[0].id}`);
+          const lastCard = document.getElementById(`header-${otherTracks[otherTracks.length - 1].id}`);
+
+          if (firstCard && e.clientY < firstCard.getBoundingClientRect().top) {
+            targetTrack = otherTracks[0];
+            targetPlacement = 'before';
+            firstCard.classList.add('drop-before');
+            if (otherTracks[0].waveLane) otherTracks[0].waveLane.classList.add('drop-before');
+          } else if (lastCard && e.clientY > lastCard.getBoundingClientRect().bottom) {
+            targetTrack = otherTracks[otherTracks.length - 1];
+            targetPlacement = 'after';
+            lastCard.classList.add('drop-after');
+            if (otherTracks[otherTracks.length - 1].waveLane) otherTracks[otherTracks.length - 1].waveLane.classList.add('drop-after');
+          }
+        }
+      }
+    }
+
+    function onTrackDragEnd(e) {
+      window.removeEventListener('mousemove', onTrackDragMove);
+      window.removeEventListener('mouseup', onTrackDragEnd);
+
+      if (!draggedTrack) return;
+
+      const headerEl = document.getElementById(`header-${draggedTrack.id}`);
+      if (headerEl) {
+        headerEl.classList.remove('is-dragging-track');
+        headerEl.style.transform = '';
+      }
+      if (draggedTrack.waveLane) {
+        draggedTrack.waveLane.classList.remove('is-reordering');
+      }
+
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      clearTrackDropIndicators();
+
+      if (isDraggingTrack && targetTrack && targetTrack !== draggedTrack) {
+        if (trackDragInitialSnapshot) {
+          undoStack.push(trackDragInitialSnapshot);
+          if (undoStack.length > MAX_HISTORY_STEPS) undoStack.shift();
+          redoStack.length = 0;
+          notifyParent('HISTORY_STATE', { canUndo: true, canRedo: false });
+        }
+
+        const oldIndex = tracks.indexOf(draggedTrack);
+        if (oldIndex !== -1) {
+          tracks.splice(oldIndex, 1);
+          const targetIndex = tracks.indexOf(targetTrack);
+          if (targetIndex !== -1) {
+            const insertIndex = targetPlacement === 'after' ? targetIndex + 1 : targetIndex;
+            tracks.splice(insertIndex, 0, draggedTrack);
+          }
+        }
+
+        // Reorder DOM elements in headersList and wavesList
+        tracks.forEach(t => {
+          const h = document.getElementById(`header-${t.id}`);
+          if (h) headersList.appendChild(h);
+          if (t.waveLane) wavesList.appendChild(t.waveLane);
+        });
+
+        notifyParent('TRACKS_REORDERED', { count: tracks.length });
+      }
+
+      trackDragInitialSnapshot = null;
+      draggedTrack = null;
+      targetTrack = null;
+      targetPlacement = null;
+      isDraggingTrack = false;
+      setTimeout(() => {
+        wasDraggingTrackJustNow = false;
+      }, 50);
+    }
+
+    function renderTrackRow(track) {
+      const elements = createTrackRowElements(track);
+      headersList.appendChild(elements.header);
+      wavesList.appendChild(elements.lane);
+      return elements;
+    }
+
+    let draggedClip = null;
+    let dragSourceTrack = null;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let dragInitialStartTime = 0;
+    let isDraggingClip = false;
+    let currentTargetTrack = null;
+    let isBelowAllTracks = false;
+    let wasPlayingBeforeClipDrag = false;
+    let multiDragClips = null;
+
+    function renderTrackClips(track) {
+      if (!track.waveLane) return;
+      const lane = track.waveLane;
+      lane.innerHTML = '';
+
+      if (track.clips.length === 0) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'empty-lane-placeholder';
+        placeholder.innerHTML = `
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M9 18V5l12-2v13"></path>
+            <circle cx="6" cy="18" r="3"></circle>
+            <circle cx="18" cy="16" r="3"></circle>
+          </svg>
+          <span>Drop audio clip here or click to import</span>
+        `;
+        placeholder.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const tempInput = document.createElement('input');
+          tempInput.type = 'file';
+          tempInput.accept = 'audio/*';
+          tempInput.onchange = (ev) => {
+            const f = ev.target.files && ev.target.files[0];
+            if (f) loadAudioFile(f, track);
+          };
+          tempInput.click();
+        });
+        lane.appendChild(placeholder);
+        return;
+      }
+
+      track.clips.forEach(clip => {
+        if (clip.fadeIn === undefined) clip.fadeIn = 0;
+        if (clip.fadeOut === undefined) clip.fadeOut = 0;
+
+        const clipEl = document.createElement('div');
+        clipEl.className = 'audio-clip';
+        clipEl.id = `clip-${clip.id}`;
+        if (selectedClipIds.has(clip.id) || clip.id === selectedClipId) {
+          clipEl.classList.add('is-selected');
+        }
+
+        clipEl.innerHTML = `
+          <div class="clip-header-tag" title="${clip.name}">${clip.name}</div>
+          <div class="clip-waveform-container">
+            <canvas class="clip-waveform-canvas"></canvas>
+          </div>
+          <svg class="clip-fade-overlay" preserveAspectRatio="none">
+            <path class="clip-fade-in-path" d=""></path>
+            <path class="clip-fade-out-path" d=""></path>
+          </svg>
+          <div class="clip-fade-handle fade-in-handle" title="Fade In Length">
+            <div class="clip-fade-tooltip">0.00s</div>
+          </div>
+          <div class="fade-curve-handle fade-in-curve-handle" title="Fade In Curve (Drag up/down, double-click to reset)">
+            <div class="clip-fade-tooltip">Linear</div>
+          </div>
+          <div class="clip-fade-handle fade-out-handle" title="Fade Out Length">
+            <div class="clip-fade-tooltip">0.00s</div>
+          </div>
+          <div class="fade-curve-handle fade-out-curve-handle" title="Fade Out Curve (Drag up/down, double-click to reset)">
+            <div class="clip-fade-tooltip">Linear</div>
+          </div>
+          <div class="clip-trim-handle trim-handle-left" title="Trim start (drag to trim)">
+            <div class="clip-trim-tooltip">0.00s</div>
+          </div>
+          <div class="clip-trim-handle trim-handle-right" title="Trim end (drag to trim)">
+            <div class="clip-trim-tooltip">0.00s</div>
+          </div>
+        `;
+
+        const fadeInHandle = clipEl.querySelector('.fade-in-handle');
+        const fadeInCurveHandle = clipEl.querySelector('.fade-in-curve-handle');
+        const fadeOutHandle = clipEl.querySelector('.fade-out-handle');
+        const fadeOutCurveHandle = clipEl.querySelector('.fade-out-curve-handle');
+        const trimLeftHandle = clipEl.querySelector('.trim-handle-left');
+        const trimRightHandle = clipEl.querySelector('.trim-handle-right');
+
+        fadeInHandle.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return;
+          e.stopPropagation();
+          startFadeDrag(clip, 'in', e);
+        });
+        fadeInHandle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        });
+
+        fadeInCurveHandle.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return;
+          e.stopPropagation();
+          startFadeCurveDrag(clip, 'in', e);
+        });
+        fadeInCurveHandle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        });
+        fadeInCurveHandle.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          clip.fadeInCurve = 0;
+          updateClipFades(clip);
+          pushHistorySnapshot();
+          notifyParent('TIMELINE_MUTATED');
+        });
+
+        fadeOutHandle.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return;
+          e.stopPropagation();
+          startFadeDrag(clip, 'out', e);
+        });
+        fadeOutHandle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        });
+
+        fadeOutCurveHandle.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return;
+          e.stopPropagation();
+          startFadeCurveDrag(clip, 'out', e);
+        });
+        fadeOutCurveHandle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        });
+        fadeOutCurveHandle.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          clip.fadeOutCurve = 0;
+          updateClipFades(clip);
+          pushHistorySnapshot();
+          notifyParent('TIMELINE_MUTATED');
+        });
+
+        trimLeftHandle.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return;
+          e.stopPropagation();
+          startTrimDrag(clip, 'left', e);
+        });
+        trimLeftHandle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        });
+
+        trimRightHandle.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return;
+          e.stopPropagation();
+          startTrimDrag(clip, 'right', e);
+        });
+        trimRightHandle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        });
+
+        clipEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+
+        clipEl.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return;
+          if (e.target.closest('.clip-fade-handle') || e.target.closest('.fade-curve-handle') || e.target.closest('.clip-trim-handle')) return;
+          e.stopPropagation();
+
+          // If Ctrl or Shift is pressed: toggle clip selection
+          if (e.ctrlKey || e.metaKey || e.shiftKey) {
+            toggleClipSelection(clip.id);
+            return;
+          }
+
+          // If clicking an unselected clip, select ONLY this clip
+          if (!selectedClipIds.has(clip.id)) {
+            selectClip(clip.id);
+          }
+
+          dragInitialSnapshot = captureSnapshot();
+          draggedClip = clip;
+          dragSourceTrack = track;
+          dragStartX = e.clientX;
+          dragStartY = e.clientY;
+          dragInitialStartTime = clip.startTime || 0;
+          isDraggingClip = false;
+          currentTargetTrack = track;
+          isBelowAllTracks = false;
+
+          // Prepare multi-drag info for all selected clips
+          multiDragClips = [];
+          selectedClipIds.forEach(id => {
+            for (const t of tracks) {
+              const c = (t.clips || []).find(x => x.id === id);
+              if (c) {
+                multiDragClips.push({
+                  clip: c,
+                  track: t,
+                  initialStartTime: c.startTime || 0,
+                  element: c.element || document.getElementById(`clip-${c.id}`)
+                });
+                break;
+              }
+            }
+          });
+
+          window.addEventListener('mousemove', onClipDragMove);
+          window.addEventListener('mouseup', onClipDragEnd);
+        });
+
+        lane.appendChild(clipEl);
+        clip.element = clipEl;
+        clip.canvas = clipEl.querySelector('canvas');
+      });
+    }
+
+    function onClipDragMove(e) {
+      if (!draggedClip || !draggedClip.element || !e || e.clientX === undefined) return;
+
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+
+      if (!isDraggingClip && Math.hypot(dx, dy) > 4) {
+        isDraggingClip = true;
+        draggedClip.element.classList.add('is-dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'grabbing';
+        if (isPlaying) {
+          wasPlayingBeforeClipDrag = true;
+          stopAllSources();
+        }
+      }
+
+      if (!isDraggingClip) return;
+
+      // Check if dragging multiple selected clips
+      if (multiDragClips && multiDragClips.length > 1) {
+        const laneWidth = rulerBar.offsetWidth;
+        const timeDelta = (dx / laneWidth) * maxDuration;
+        const minStart = Math.min(...multiDragClips.map(m => m.initialStartTime));
+        const effectiveTimeDelta = Math.max(-minStart, timeDelta);
+
+        let maxNeeded = maxDuration;
+        multiDragClips.forEach(m => {
+          const newStartTime = Math.max(0, Math.round((m.initialStartTime + effectiveTimeDelta) * 1000) / 1000);
+          m.clip.startTime = newStartTime;
+          if (newStartTime + m.clip.duration > maxNeeded) {
+            maxNeeded = Math.max(freeTimelineDuration, (newStartTime + m.clip.duration) * 1.2);
+          }
+          if (m.element) {
+            const leftPx = (newStartTime / maxDuration) * rulerBar.offsetWidth;
+            m.element.style.left = `${leftPx}px`;
+          }
+        });
+
+        if (maxNeeded > maxDuration) {
+          freeTimelineDuration = maxNeeded;
+          maxDuration = freeTimelineDuration;
+          applyZoom();
+        }
+
+        // Auto-scroll horizontally when dragging near viewport edges
+        const colRect = rightColumn.getBoundingClientRect();
+        if (e.clientX > colRect.right - 35) {
+          rightColumn.scrollLeft += 10;
+        } else if (e.clientX < colRect.left + 35) {
+          rightColumn.scrollLeft = Math.max(0, rightColumn.scrollLeft - 10);
+        }
+        return;
+      }
+
+      // 1. Horizontal movement: calculate updated startTime
+      const laneWidth = rulerBar.offsetWidth;
+      const timeDelta = (dx / laneWidth) * maxDuration;
+      const newStartTime = Math.max(0, Math.round((dragInitialStartTime + timeDelta) * 1000) / 1000);
+      draggedClip.startTime = newStartTime;
+
+      if (newStartTime + draggedClip.duration > maxDuration) {
+        freeTimelineDuration = Math.max(freeTimelineDuration, (newStartTime + draggedClip.duration) * 1.2);
+        maxDuration = freeTimelineDuration;
+        applyZoom();
+      }
+
+      const leftPx = (newStartTime / maxDuration) * rulerBar.offsetWidth;
+      draggedClip.element.style.left = `${leftPx}px`;
+      draggedClip.element.style.transform = `translateY(${dy}px)`;
+
+      // Auto-scroll horizontally when dragging near viewport edges
+      const colRect = rightColumn.getBoundingClientRect();
+      if (e.clientX > colRect.right - 35) {
+        rightColumn.scrollLeft += 10;
+      } else if (e.clientX < colRect.left + 35) {
+        rightColumn.scrollLeft = Math.max(0, rightColumn.scrollLeft - 10);
+      }
+
+      // 2. Vertical movement: detect target track or new track below
+      clearDropHighlights();
+      currentTargetTrack = null;
+      isBelowAllTracks = false;
+
+      for (let i = 0; i < tracks.length; i++) {
+        const t = tracks[i];
+        if (!t.waveLane) continue;
+        const rect = t.waveLane.getBoundingClientRect();
+        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          currentTargetTrack = t;
+          t.waveLane.classList.add('drop-target');
+          break;
+        }
+      }
+
+      if (!currentTargetTrack && tracks.length > 0) {
+        const lastLane = tracks[tracks.length - 1].waveLane;
+        if (lastLane) {
+          const lastRect = lastLane.getBoundingClientRect();
+          if (e.clientY > lastRect.bottom - 10) {
+            isBelowAllTracks = true;
+            if (newTrackIndicator) newTrackIndicator.classList.add('is-active');
+          } else if (e.clientY < tracks[0].waveLane.getBoundingClientRect().top) {
+            currentTargetTrack = tracks[0];
+            tracks[0].waveLane.classList.add('drop-target');
+          }
+        }
+      }
+    }
+
+    function clearDropHighlights() {
+      tracks.forEach(t => {
+        if (t.waveLane) t.waveLane.classList.remove('drop-target');
+      });
+      if (newTrackIndicator) newTrackIndicator.classList.remove('is-active');
+    }
+
+    function resolveClipOverlapsOnTrack(track, incomingClip) {
+      if (!track || !track.clips || track.clips.length <= 1) return;
+
+      const bStart = incomingClip.startTime;
+      const bEnd = bStart + incomingClip.duration;
+      const eps = 0.01; // 10ms tolerance
+      const minDuration = 0.03; // Minimum slice duration (30ms)
+
+      const updatedClips = [];
+
+      for (const clip of track.clips) {
+        if (clip === incomingClip) {
+          updatedClips.push(clip);
+          continue;
+        }
+
+        const aStart = clip.startTime || 0;
+        const aEnd = aStart + clip.duration;
+
+        // 1. Check if overlap exists
+        if (bEnd <= aStart + eps || bStart >= aEnd - eps) {
+          // No overlap
+          updatedClips.push(clip);
+          continue;
+        }
+
+        // 2. Case 1: incomingClip completely covers clip
+        if (bStart <= aStart + eps && bEnd >= aEnd - eps) {
+          // clip is completely overwritten/replaced by incomingClip
+          continue;
+        }
+
+        const origBuffer = clip.buffer;
+
+        // 3. Case 4: incomingClip is inside clip (punches a hole in the middle)
+        if (aStart < bStart - eps && aEnd > bEnd + eps) {
+          const leftDur = bStart - aStart;
+          const cutOffset = bEnd - aStart;
+          const rightDur = aEnd - bEnd;
+
+          const leftBuf = leftDur >= minDuration ? sliceAudioBuffer(audioContext, origBuffer, 0, leftDur) : null;
+          const rightBuf = rightDur >= minDuration ? sliceAudioBuffer(audioContext, origBuffer, cutOffset, clip.duration) : null;
+
+          if (leftBuf) {
+            clip.duration = leftBuf.duration;
+            clip.buffer = leftBuf;
+            if (!clip.sourceBuffer) {
+              clip.sourceBuffer = origBuffer;
+              clip.sourceOffset = 0;
+            }
+            clip.fadeIn = Math.min(clip.fadeIn || 0, leftBuf.duration);
+            clip.fadeOut = 0;
+            updatedClips.push(clip);
+          }
+
+          if (rightBuf) {
+            const rightClip = {
+              id: 'clip_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+              name: clip.name,
+              startTime: bEnd,
+              duration: rightBuf.duration,
+              buffer: rightBuf,
+              sourceBuffer: clip.sourceBuffer || origBuffer,
+              sourceOffset: (clip.sourceOffset || 0) + cutOffset,
+              fadeIn: 0,
+              fadeOut: Math.min(clip.fadeOut || 0, rightBuf.duration)
+            };
+            updatedClips.push(rightClip);
+          }
+          continue;
+        }
+
+        // 4. Case 2: incomingClip covers the right portion of clip
+        if (aStart < bStart - eps && aEnd <= bEnd + eps) {
+          const leftDur = bStart - aStart;
+          if (leftDur >= minDuration) {
+            const leftBuf = sliceAudioBuffer(audioContext, origBuffer, 0, leftDur);
+            if (leftBuf) {
+              clip.duration = leftBuf.duration;
+              clip.buffer = leftBuf;
+              if (!clip.sourceBuffer) {
+                clip.sourceBuffer = origBuffer;
+                clip.sourceOffset = 0;
+              }
+              clip.fadeIn = Math.min(clip.fadeIn || 0, leftBuf.duration);
+              clip.fadeOut = 0;
+              updatedClips.push(clip);
+            }
+          }
+          continue;
+        }
+
+        // 5. Case 3: incomingClip covers the left portion of clip
+        if (aStart >= bStart - eps && aEnd > bEnd + eps) {
+          const rightDur = aEnd - bEnd;
+          const cutOffset = bEnd - aStart;
+          if (rightDur >= minDuration) {
+            const rightBuf = sliceAudioBuffer(audioContext, origBuffer, cutOffset, clip.duration);
+            if (rightBuf) {
+              clip.startTime = bEnd;
+              clip.duration = rightBuf.duration;
+              clip.buffer = rightBuf;
+              clip.sourceBuffer = clip.sourceBuffer || origBuffer;
+              clip.sourceOffset = (clip.sourceOffset || 0) + cutOffset;
+              clip.fadeIn = 0;
+              clip.fadeOut = Math.min(clip.fadeOut || 0, rightBuf.duration);
+              updatedClips.push(clip);
+            }
+          }
+          continue;
+        }
+      }
+
+      updatedClips.sort((a, b) => a.startTime - b.startTime);
+      track.clips = updatedClips;
+    }
+
+    function onClipDragEnd(e) {
+      e = e || {};
+      window.removeEventListener('mousemove', onClipDragMove);
+      window.removeEventListener('mouseup', onClipDragEnd);
+
+      if (!draggedClip) return;
+
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      clearDropHighlights();
+
+      if (!isDraggingClip) {
+        dragInitialSnapshot = null;
+        // Simple click without dragging: select clicked clip, do NOT move the playhead!
+        selectClip(draggedClip.id);
+        multiDragClips = null;
+        draggedClip = null;
+        return;
+      }
+
+      if (dragInitialSnapshot) {
+        undoStack.push(dragInitialSnapshot);
+        if (undoStack.length > MAX_HISTORY_STEPS) undoStack.shift();
+        redoStack.length = 0;
+        notifyParent('HISTORY_STATE', { canUndo: true, canRedo: false });
+        dragInitialSnapshot = null;
+      }
+
+      // Finalize multi-clip drag
+      if (multiDragClips && multiDragClips.length > 1) {
+        const affectedTracks = new Set();
+        multiDragClips.forEach(m => {
+          if (m.element) {
+            m.element.classList.remove('is-dragging');
+            m.element.style.transform = '';
+          }
+          affectedTracks.add(m.track);
+        });
+
+        affectedTracks.forEach(t => {
+          (t.clips || []).sort((a, b) => (a.startTime || 0) - (b.startTime || 0));
+          renderTrackClips(t);
+        });
+
+        recalcMaxDuration();
+        applyZoom();
+
+        // Restore visual selection on all clips
+        multiDragClips.forEach(m => {
+          updateClipVisualSelection(m.clip.id, true);
+        });
+
+        multiDragClips = null;
+        draggedClip = null;
+        dragSourceTrack = null;
+        isDraggingClip = false;
+
+        if (wasPlayingBeforeClipDrag) {
+          wasPlayingBeforeClipDrag = false;
+          startAllSources(currentPlayheadTime);
+        } else if (isPlaying) {
+          startAllSources(currentPlayheadTime);
+        }
+
+        notifyParent('CLIP_MOVED', { clipIds: Array.from(selectedClipIds) });
+        return;
+      }
+
+      draggedClip.element.classList.remove('is-dragging');
+      draggedClip.element.style.transform = '';
+
+      const clipToMove = draggedClip;
+      const sourceT = dragSourceTrack;
+
+      if (isBelowAllTracks) {
+        // Dragged down below the bottom track: create a new track lane!
+        const newTrackId = 'track_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = 1.0;
+        gainNode.connect(audioContext.destination);
+
+        const newTrack = {
+          id: newTrackId,
+          name: `Track ${tracks.length + 1}`,
+          duration: clipToMove.startTime + clipToMove.duration,
+          gainNode: gainNode,
+          volume: 100,
+          clips: [clipToMove]
+        };
+
+        const cIdx = sourceT.clips.indexOf(clipToMove);
+        if (cIdx !== -1) sourceT.clips.splice(cIdx, 1);
+
+        tracks.push(newTrack);
+
+        renderTrackRow(newTrack);
+        renderTrackClips(sourceT);
+      } else if (currentTargetTrack && currentTargetTrack !== sourceT) {
+        // Moved vertically to another existing track
+        const cIdx = sourceT.clips.indexOf(clipToMove);
+        if (cIdx !== -1) sourceT.clips.splice(cIdx, 1);
+
+        currentTargetTrack.clips.push(clipToMove);
+        resolveClipOverlapsOnTrack(currentTargetTrack, clipToMove);
+
+        renderTrackClips(sourceT);
+        renderTrackClips(currentTargetTrack);
+      } else {
+        // Remained on sourceTrack with updated startTime
+        resolveClipOverlapsOnTrack(sourceT, clipToMove);
+        renderTrackClips(sourceT);
+      }
+
+      recalcMaxDuration();
+      applyZoom();
+      selectClip(clipToMove.id);
+
+      multiDragClips = null;
+      draggedClip = null;
+      dragSourceTrack = null;
+      isDraggingClip = false;
+      currentTargetTrack = null;
+      isBelowAllTracks = false;
+
+      if (wasPlayingBeforeClipDrag) {
+        wasPlayingBeforeClipDrag = false;
+        startAllSources(currentPlayheadTime);
+      } else if (isPlaying) {
+        startAllSources(currentPlayheadTime);
+      }
+
+      notifyParent('CLIP_MOVED', { clipId: clipToMove.id, trackCount: tracks.length });
+    }
+
+    function updateClipsLayout() {
+      if (maxDuration <= 0) return;
+      const laneWidth = rulerBar.offsetWidth;
+
+      tracks.forEach(track => {
+        track.clips.forEach(clip => {
+          if (!clip.element) return;
+          const leftPx = (clip.startTime / maxDuration) * laneWidth;
+          const widthPx = Math.max(4, (clip.duration / maxDuration) * laneWidth);
+          clip.element.style.left = `${leftPx}px`;
+          clip.element.style.width = `${widthPx}px`;
+
+          drawClipWaveform(clip, clip.canvas);
+          updateClipFades(clip, widthPx);
+        });
+      });
+    }
+
+    function updateClipFades(clip, widthPx) {
+      if (!clip || !clip.element) return;
+      if (widthPx === undefined) {
+        widthPx = clip.element.offsetWidth;
+      }
+      if (widthPx <= 0 || clip.duration <= 0) return;
+
+      const heightPx = clip.element.offsetHeight || 64;
+
+      const fadeIn = Math.max(0, Math.min(clip.duration, clip.fadeIn || 0));
+      const fadeOut = Math.max(0, Math.min(clip.duration - fadeIn, clip.fadeOut || 0));
+
+      const fadeInPx = Math.min(widthPx, (fadeIn / clip.duration) * widthPx);
+      const fadeOutPx = Math.min(widthPx - fadeInPx, (fadeOut / clip.duration) * widthPx);
+
+      const fadeInHandle = clip.element.querySelector('.fade-in-handle');
+      const fadeInCurveHandle = clip.element.querySelector('.fade-in-curve-handle');
+      const fadeOutHandle = clip.element.querySelector('.fade-out-handle');
+      const fadeOutCurveHandle = clip.element.querySelector('.fade-out-curve-handle');
+      const fadeInPath = clip.element.querySelector('.clip-fade-in-path');
+      const fadeOutPath = clip.element.querySelector('.clip-fade-out-path');
+
+      const inCurve = Math.max(-1, Math.min(1, clip.fadeInCurve || 0));
+      const outCurve = Math.max(-1, Math.min(1, clip.fadeOutCurve || 0));
+
+      // Update Fade In handle, curve handle, and path
+      if (fadeInHandle) {
+        fadeInHandle.style.left = `${fadeInPx}px`;
+        if (fadeIn > 0.01) {
+          fadeInHandle.classList.add('has-fade');
+        } else {
+          fadeInHandle.classList.remove('has-fade');
+        }
+        const tip = fadeInHandle.querySelector('.clip-fade-tooltip');
+        if (tip) tip.textContent = `${fadeIn.toFixed(2)}s`;
+      }
+
+      if (fadeInPath) {
+        if (fadeInPx > 1) {
+          // Quadratic control point C:
+          const cx = 0.5 * fadeInPx * (1 - inCurve);
+          const cy = 0.5 * heightPx * (1 - inCurve);
+
+          // Convert to cubic control points for SVG path from (fadeInPx, 0) to (0, heightPx):
+          const cp1x = fadeInPx + (2 / 3) * (cx - fadeInPx);
+          const cp1y = (2 / 3) * cy;
+          const cp2x = (2 / 3) * cx;
+          const cp2y = heightPx + (2 / 3) * (cy - heightPx);
+
+          fadeInPath.setAttribute('d', `M 0,0 L ${fadeInPx.toFixed(1)},0 C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} 0,${heightPx} Z`);
+
+          // Midpoint on the curve at t = 0.5:
+          const midX = fadeInPx * (0.5 - 0.25 * inCurve);
+          const midY = heightPx * (0.5 - 0.25 * inCurve);
+
+          if (fadeInCurveHandle) {
+            fadeInCurveHandle.style.left = `${midX.toFixed(1)}px`;
+            fadeInCurveHandle.style.top = `${midY.toFixed(1)}px`;
+            if (fadeInPx > 8) {
+              fadeInCurveHandle.classList.add('has-fade');
+            } else {
+              fadeInCurveHandle.classList.remove('has-fade');
+            }
+            const tip = fadeInCurveHandle.querySelector('.clip-fade-tooltip');
+            if (tip) {
+              const pct = Math.round(inCurve * 100);
+              tip.textContent = pct === 0 ? 'Linear' : (pct > 0 ? `+${pct}%` : `${pct}%`);
+            }
+          }
+        } else {
+          fadeInPath.setAttribute('d', '');
+          if (fadeInCurveHandle) {
+            fadeInCurveHandle.classList.remove('has-fade');
+          }
+        }
+      }
+
+      // Update Fade Out handle, curve handle, and path
+      if (fadeOutHandle) {
+        const handleX = widthPx - fadeOutPx;
+        fadeOutHandle.style.left = `${handleX}px`;
+        if (fadeOut > 0.01) {
+          fadeOutHandle.classList.add('has-fade');
+        } else {
+          fadeOutHandle.classList.remove('has-fade');
+        }
+        const tip = fadeOutHandle.querySelector('.clip-fade-tooltip');
+        if (tip) tip.textContent = `${fadeOut.toFixed(2)}s`;
+      }
+
+      if (fadeOutPath) {
+        if (fadeOutPx > 1) {
+          const startX = widthPx - fadeOutPx;
+          // Quadratic control point C:
+          const cx = startX + 0.5 * fadeOutPx * (1 + outCurve);
+          const cy = 0.5 * heightPx * (1 - outCurve);
+
+          // Convert to cubic control points for SVG path from (startX, 0) to (widthPx, heightPx):
+          const cp1x = startX + (2 / 3) * (cx - startX);
+          const cp1y = (2 / 3) * cy;
+          const cp2x = widthPx + (2 / 3) * (cx - widthPx);
+          const cp2y = heightPx + (2 / 3) * (cy - heightPx);
+
+          fadeOutPath.setAttribute('d', `M ${startX.toFixed(1)},0 L ${widthPx},0 L ${widthPx},${heightPx} C ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${startX.toFixed(1)},0 Z`);
+
+          // Midpoint on the curve at t = 0.5:
+          const midX = startX + fadeOutPx * (0.5 + 0.25 * outCurve);
+          const midY = heightPx * (0.5 - 0.25 * outCurve);
+
+          if (fadeOutCurveHandle) {
+            fadeOutCurveHandle.style.left = `${midX.toFixed(1)}px`;
+            fadeOutCurveHandle.style.top = `${midY.toFixed(1)}px`;
+            if (fadeOutPx > 8) {
+              fadeOutCurveHandle.classList.add('has-fade');
+            } else {
+              fadeOutCurveHandle.classList.remove('has-fade');
+            }
+            const tip = fadeOutCurveHandle.querySelector('.clip-fade-tooltip');
+            if (tip) {
+              const pct = Math.round(outCurve * 100);
+              tip.textContent = pct === 0 ? 'Linear' : (pct > 0 ? `+${pct}%` : `${pct}%`);
+            }
+          }
+        } else {
+          fadeOutPath.setAttribute('d', '');
+          if (fadeOutCurveHandle) {
+            fadeOutCurveHandle.classList.remove('has-fade');
+          }
+        }
+      }
+    }
+
+    let isDraggingFade = false;
+    let wasDraggingFadeJustNow = false;
+    let wasDraggingFadeCurveJustNow = false;
+    let draggedFadeClip = null;
+    let draggedFadeType = null; // 'in' | 'out'
+    let fadeDragStartX = 0;
+    let fadeDragInitialVal = 0;
+
+    function startFadeDrag(clip, type, e) {
+      fadeDragInitialSnapshot = captureSnapshot();
+      isDraggingFade = true;
+      draggedFadeClip = clip;
+      draggedFadeType = type;
+      fadeDragStartX = e.clientX;
+      fadeDragInitialVal = (type === 'in' ? (clip.fadeIn || 0) : (clip.fadeOut || 0));
+
+      if (type === 'in') {
+        const handle = clip.element.querySelector('.fade-in-handle');
+        if (handle) handle.classList.add('is-dragging');
+      } else {
+        const handle = clip.element.querySelector('.fade-out-handle');
+        if (handle) handle.classList.add('is-dragging');
+      }
+
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'ew-resize';
+
+      window.addEventListener('mousemove', onFadeDragMove);
+      window.addEventListener('mouseup', onFadeDragEnd);
+    }
+
+    function onFadeDragMove(e) {
+      if (!isDraggingFade || !draggedFadeClip || !draggedFadeClip.element || !e || e.clientX === undefined) return;
+
+      const dx = e.clientX - fadeDragStartX;
+      const clipWidthPx = draggedFadeClip.element.offsetWidth;
+      if (clipWidthPx <= 0) return;
+
+      const pxPerSec = clipWidthPx / draggedFadeClip.duration;
+      const timeDelta = dx / pxPerSec;
+
+      if (draggedFadeType === 'in') {
+        let newFadeIn = Math.max(0, fadeDragInitialVal + timeDelta);
+        const maxAllowed = Math.max(0, draggedFadeClip.duration - (draggedFadeClip.fadeOut || 0));
+        newFadeIn = Math.min(maxAllowed, newFadeIn);
+        draggedFadeClip.fadeIn = Math.round(newFadeIn * 1000) / 1000;
+      } else {
+        let newFadeOut = Math.max(0, fadeDragInitialVal - timeDelta);
+        const maxAllowed = Math.max(0, draggedFadeClip.duration - (draggedFadeClip.fadeIn || 0));
+        newFadeOut = Math.min(maxAllowed, newFadeOut);
+        draggedFadeClip.fadeOut = Math.round(newFadeOut * 1000) / 1000;
+      }
+
+      updateClipFades(draggedFadeClip, clipWidthPx);
+    }
+
+    function onFadeDragEnd(e) {
+      if (!isDraggingFade) return;
+
+      if (draggedFadeClip && draggedFadeClip.element) {
+        const hIn = draggedFadeClip.element.querySelector('.fade-in-handle');
+        if (hIn) hIn.classList.remove('is-dragging');
+        const hOut = draggedFadeClip.element.querySelector('.fade-out-handle');
+        if (hOut) hOut.classList.remove('is-dragging');
+
+        const finalVal = (draggedFadeType === 'in') ? (draggedFadeClip.fadeIn || 0) : (draggedFadeClip.fadeOut || 0);
+        const didChange = Math.abs(finalVal - fadeDragInitialVal) > 0.005;
+        if (didChange && fadeDragInitialSnapshot) {
+          undoStack.push(fadeDragInitialSnapshot);
+          if (undoStack.length > MAX_HISTORY_STEPS) undoStack.shift();
+          redoStack.length = 0;
+          notifyParent('HISTORY_STATE', { canUndo: true, canRedo: false });
+        }
+      }
+      fadeDragInitialSnapshot = null;
+
+      isDraggingFade = false;
+      draggedFadeClip = null;
+      draggedFadeType = null;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+
+      wasDraggingFadeJustNow = true;
+      setTimeout(() => { wasDraggingFadeJustNow = false; }, 250);
+
+      window.removeEventListener('mousemove', onFadeDragMove);
+      window.removeEventListener('mouseup', onFadeDragEnd);
+
+      if (isPlaying) {
+        startAllSources(currentPlayheadTime);
+      }
+    }
+
+    /* Fade Curve Tension Dragging Engine */
+    let isDraggingFadeCurve = false;
+    let draggedFadeCurveClip = null;
+    let draggedFadeCurveType = null; // 'in' | 'out'
+    let fadeCurveDragStartY = 0;
+    let fadeCurveDragInitialVal = 0;
+    let fadeCurveClipHeight = 64;
+    let fadeCurveInitialSnapshot = null;
+
+    function startFadeCurveDrag(clip, type, e) {
+      isDraggingFadeCurve = true;
+      draggedFadeCurveClip = clip;
+      draggedFadeCurveType = type;
+      fadeCurveDragStartY = e.clientY;
+      fadeCurveDragInitialVal = (type === 'in' ? (clip.fadeInCurve || 0) : (clip.fadeOutCurve || 0));
+      fadeCurveClipHeight = clip.element ? (clip.element.offsetHeight || 64) : 64;
+      fadeCurveInitialSnapshot = captureSnapshot();
+
+      const handle = type === 'in'
+        ? clip.element.querySelector('.fade-in-curve-handle')
+        : clip.element.querySelector('.fade-out-curve-handle');
+      if (handle) handle.classList.add('is-dragging');
+
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'ns-resize';
+
+      window.addEventListener('mousemove', onFadeCurveDragMove);
+      window.addEventListener('mouseup', onFadeCurveDragEnd);
+    }
+
+    function onFadeCurveDragMove(e) {
+      if (!isDraggingFadeCurve || !draggedFadeCurveClip) return;
+      const deltaY = fadeCurveDragStartY - e.clientY;
+      const sensitivity = 1 / (fadeCurveClipHeight * 0.45);
+      let newCurve = Math.max(-1, Math.min(1, fadeCurveDragInitialVal + deltaY * sensitivity));
+      newCurve = Math.round(newCurve * 100) / 100;
+
+      if (draggedFadeCurveType === 'in') {
+        draggedFadeCurveClip.fadeInCurve = newCurve;
+      } else {
+        draggedFadeCurveClip.fadeOutCurve = newCurve;
+      }
+      updateClipFades(draggedFadeCurveClip);
+    }
+
+    function onFadeCurveDragEnd(e) {
+      if (!isDraggingFadeCurve) return;
+
+      if (draggedFadeCurveClip && draggedFadeCurveClip.element) {
+        const handle = draggedFadeCurveType === 'in'
+          ? draggedFadeCurveClip.element.querySelector('.fade-in-curve-handle')
+          : draggedFadeCurveClip.element.querySelector('.fade-out-curve-handle');
+        if (handle) handle.classList.remove('is-dragging');
+
+        const finalVal = (draggedFadeCurveType === 'in') ? (draggedFadeCurveClip.fadeInCurve || 0) : (draggedFadeCurveClip.fadeOutCurve || 0);
+        if (Math.abs(finalVal - fadeCurveDragInitialVal) > 0.01 && fadeCurveInitialSnapshot) {
+          undoStack.push(fadeCurveInitialSnapshot);
+          if (undoStack.length > MAX_HISTORY_STEPS) undoStack.shift();
+          redoStack.length = 0;
+          notifyParent('HISTORY_STATE', { canUndo: true, canRedo: false });
+          notifyParent('TIMELINE_MUTATED');
+        }
+      }
+      fadeCurveInitialSnapshot = null;
+      isDraggingFadeCurve = false;
+      draggedFadeCurveClip = null;
+      draggedFadeCurveType = null;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+
+      wasDraggingFadeCurveJustNow = true;
+      setTimeout(() => { wasDraggingFadeCurveJustNow = false; }, 250);
+
+      window.removeEventListener('mousemove', onFadeCurveDragMove);
+      window.removeEventListener('mouseup', onFadeCurveDragEnd);
+
+      if (isPlaying) {
+        startAllSources(currentPlayheadTime);
+      }
+    }
+
+    let isDraggingTrim = false;
+    let draggedTrimClip = null;
+    let draggedTrimSide = null; // 'left' | 'right'
+    let draggedTrimTrack = null;
+    let trimDragStartX = 0;
+    let trimInitialStartTime = 0;
+    let trimInitialDuration = 0;
+    let trimInitialSourceOffset = 0;
+    let trimInitialFadeIn = 0;
+    let trimInitialFadeOut = 0;
+    let trimInitialLeftPx = 0;
+    let trimInitialWidthPx = 0;
+    let trimPxPerSec = 0;
+    let wasPlayingBeforeTrim = false;
+
+    function startTrimDrag(clip, side, e) {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+
+      trimDragInitialSnapshot = captureSnapshot();
+
+      if (!clip.sourceBuffer) {
+        clip.sourceBuffer = clip.buffer;
+        clip.sourceOffset = 0;
+      }
+      if (clip.sourceOffset === undefined) {
+        clip.sourceOffset = 0;
+      }
+
+      isDraggingTrim = true;
+      draggedTrimClip = clip;
+      draggedTrimSide = side;
+      trimDragStartX = e.clientX;
+
+      trimInitialStartTime = clip.startTime || 0;
+      trimInitialDuration = clip.duration || 0;
+      trimInitialSourceOffset = clip.sourceOffset || 0;
+      trimInitialFadeIn = clip.fadeIn || 0;
+      trimInitialFadeOut = clip.fadeOut || 0;
+
+      draggedTrimTrack = null;
+      for (const t of tracks) {
+        if (t.clips && t.clips.includes(clip)) {
+          draggedTrimTrack = t;
+          break;
+        }
+      }
+
+      const laneWidth = rulerBar.offsetWidth;
+      trimPxPerSec = maxDuration > 0 ? (laneWidth / maxDuration) : 100;
+      trimInitialLeftPx = (trimInitialStartTime / maxDuration) * laneWidth;
+      trimInitialWidthPx = Math.max(4, (trimInitialDuration / maxDuration) * laneWidth);
+
+      // Fix Bug 1: Do NOT clear or redraw the canvas on mousedown!
+      // Simply lock canvas style width to initial width and left to 0px so it remains 100% frozen.
+      if (clip.canvas) {
+        clip.canvas.style.width = `${trimInitialWidthPx}px`;
+        clip.canvas.style.left = '0px';
+      }
+
+      const handle = clip.element ? clip.element.querySelector(side === 'left' ? '.trim-handle-left' : '.trim-handle-right') : null;
+      if (handle) handle.classList.add('is-dragging');
+      if (clip.element) clip.element.classList.add('is-trimming');
+
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+
+      if (isPlaying) {
+        wasPlayingBeforeTrim = true;
+        stopAllSources();
+      } else {
+        wasPlayingBeforeTrim = false;
+      }
+
+      selectClip(clip.id);
+
+      window.addEventListener('mousemove', onTrimDragMove);
+      window.addEventListener('mouseup', onTrimDragEnd);
+    }
+
+    function onTrimDragMove(e) {
+      if (!isDraggingTrim || !draggedTrimClip || !draggedTrimClip.element || !e || e.clientX === undefined) return;
+
+      const dx = e.clientX - trimDragStartX;
+      const laneWidth = rulerBar.offsetWidth;
+      if (laneWidth <= 0 || maxDuration <= 0) return;
+
+      const deltaTime = (dx / laneWidth) * maxDuration;
+      const clip = draggedTrimClip;
+      const minDuration = 0.05;
+
+      if (draggedTrimSide === 'left') {
+        let leftBound = Math.max(0, trimInitialStartTime - trimInitialSourceOffset);
+        if (draggedTrimTrack && draggedTrimTrack.clips) {
+          for (const other of draggedTrimTrack.clips) {
+            if (other === clip) continue;
+            const otherEnd = (other.startTime || 0) + other.duration;
+            if (other.startTime < trimInitialStartTime && otherEnd > leftBound) {
+              leftBound = otherEnd;
+            }
+          }
+        }
+        const rightBound = trimInitialStartTime + trimInitialDuration - minDuration;
+        const newStartTime = Math.max(leftBound, Math.min(rightBound, trimInitialStartTime + deltaTime));
+        const actualDelta = newStartTime - trimInitialStartTime;
+        const newDuration = trimInitialDuration - actualDelta;
+        const newSourceOffset = trimInitialSourceOffset + actualDelta;
+
+        clip.startTime = Math.round(newStartTime * 1000) / 1000;
+        clip.duration = Math.round(newDuration * 1000) / 1000;
+        clip.sourceOffset = Math.round(newSourceOffset * 1000) / 1000;
+
+        // Fix Bug 2: Fade cannot exceed initial fade or duration, and never becomes positive if initially 0
+        clip.fadeIn = Math.max(0, Math.min(trimInitialFadeIn, clip.duration));
+        clip.fadeOut = Math.max(0, Math.min(trimInitialFadeOut, clip.duration - (clip.fadeIn || 0)));
+
+        // Fix Bug 1: Keep waveform completely stationary on the timeline
+        if (clip.canvas) {
+          if (actualDelta >= 0) {
+            const actualDeltaPx = (actualDelta / maxDuration) * laneWidth;
+            clip.canvas.style.left = `${-actualDeltaPx}px`;
+            clip.canvas.style.width = `${trimInitialWidthPx}px`;
+          } else {
+            // Extended left beyond initial start time into source audio: draw at exact timeline scale
+            const canvasW = Math.max(4, Math.round(clip.duration * trimPxPerSec));
+            const canvasH = clip.element.offsetHeight || 64;
+            clip.canvas.style.left = '0px';
+            clip.canvas.style.width = '100%';
+            drawWaveformRange(clip.canvas, clip.sourceBuffer, clip.sourceOffset, clip.duration, canvasW, canvasH);
+          }
+        }
+
+      } else {
+        const sourceTotalDur = (clip.sourceBuffer ? clip.sourceBuffer.duration : clip.duration);
+        const maxSourceAvail = Math.max(minDuration, sourceTotalDur - trimInitialSourceOffset);
+        let rightBoundTime = trimInitialStartTime + maxSourceAvail;
+
+        if (draggedTrimTrack && draggedTrimTrack.clips) {
+          for (const other of draggedTrimTrack.clips) {
+            if (other === clip) continue;
+            if (other.startTime >= trimInitialStartTime && other.startTime < rightBoundTime) {
+              rightBoundTime = other.startTime;
+            }
+          }
+        }
+        const maxDurationAllowed = Math.max(minDuration, rightBoundTime - trimInitialStartTime);
+        const newDuration = Math.max(minDuration, Math.min(maxDurationAllowed, trimInitialDuration + deltaTime));
+
+        clip.duration = Math.round(newDuration * 1000) / 1000;
+
+        // Fix Bug 2: Fade cannot exceed initial fade or duration, and never becomes positive if initially 0
+        clip.fadeIn = Math.max(0, Math.min(trimInitialFadeIn, clip.duration));
+        clip.fadeOut = Math.max(0, Math.min(trimInitialFadeOut, clip.duration - (clip.fadeIn || 0)));
+
+        // Fix Bug 1: Keep waveform completely stationary on the timeline
+        if (clip.canvas) {
+          if (newDuration <= trimInitialDuration) {
+            clip.canvas.style.left = '0px';
+            clip.canvas.style.width = `${trimInitialWidthPx}px`;
+          } else {
+            // Extended right beyond initial duration into source audio: draw at exact timeline scale
+            const canvasW = Math.max(4, Math.round(clip.duration * trimPxPerSec));
+            const canvasH = clip.element.offsetHeight || 64;
+            clip.canvas.style.left = '0px';
+            clip.canvas.style.width = '100%';
+            drawWaveformRange(clip.canvas, clip.sourceBuffer, clip.sourceOffset, clip.duration, canvasW, canvasH);
+          }
+        }
+
+        if (clip.startTime + clip.duration > maxDuration) {
+          freeTimelineDuration = Math.max(freeTimelineDuration, (clip.startTime + clip.duration) * 1.2);
+          maxDuration = freeTimelineDuration;
+          applyZoom();
+        }
+      }
+
+      const leftPx = (clip.startTime / maxDuration) * rulerBar.offsetWidth;
+      const widthPx = Math.max(4, (clip.duration / maxDuration) * rulerBar.offsetWidth);
+      clip.element.style.left = `${leftPx}px`;
+      clip.element.style.width = `${widthPx}px`;
+
+      const tip = clip.element.querySelector(draggedTrimSide === 'left' ? '.trim-handle-left .clip-trim-tooltip' : '.trim-handle-right .clip-trim-tooltip');
+      if (tip) {
+        tip.textContent = `${clip.duration.toFixed(2)}s`;
+      }
+
+      updateClipFades(clip, widthPx);
+
+      const colRect = rightColumn.getBoundingClientRect();
+      if (e.clientX > colRect.right - 35) {
+        rightColumn.scrollLeft += 10;
+      } else if (e.clientX < colRect.left + 35) {
+        rightColumn.scrollLeft = Math.max(0, rightColumn.scrollLeft - 10);
+      }
+    }
+
+    function onTrimDragEnd(e) {
+      if (!isDraggingTrim || !draggedTrimClip) return;
+      e = e || {};
+
+      window.removeEventListener('mousemove', onTrimDragMove);
+      window.removeEventListener('mouseup', onTrimDragEnd);
+
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+
+      const clip = draggedTrimClip;
+      const track = draggedTrimTrack;
+
+      if (clip.element) {
+        if (clip.canvas) {
+          clip.canvas.style.left = '0px';
+          clip.canvas.style.width = '100%';
+        }
+        const handle = clip.element.querySelector(draggedTrimSide === 'left' ? '.trim-handle-left' : '.trim-handle-right');
+        if (handle) handle.classList.remove('is-dragging');
+        clip.element.classList.remove('is-trimming');
+      }
+
+      if (clip.sourceBuffer) {
+        const startSec = Math.max(0, clip.sourceOffset || 0);
+        const endSec = Math.min(clip.sourceBuffer.duration, startSec + clip.duration);
+        const newBuf = sliceAudioBuffer(audioContext, clip.sourceBuffer, startSec, endSec);
+        if (newBuf) {
+          clip.buffer = newBuf;
+          clip.duration = newBuf.duration;
+        }
+      }
+
+      const didTrim = (clip.startTime !== trimInitialStartTime) || (clip.duration !== trimInitialDuration);
+      if (didTrim && trimDragInitialSnapshot) {
+        undoStack.push(trimDragInitialSnapshot);
+        if (undoStack.length > MAX_HISTORY_STEPS) undoStack.shift();
+        redoStack.length = 0;
+        notifyParent('HISTORY_STATE', { canUndo: true, canRedo: false });
+      }
+      trimDragInitialSnapshot = null;
+
+      isDraggingTrim = false;
+      draggedTrimClip = null;
+      draggedTrimSide = null;
+      draggedTrimTrack = null;
+
+      if (track) {
+        const savedScrollLeft = rightColumn.scrollLeft;
+        renderTrackClips(track);
+        recalcMaxDuration();
+        updateClipsLayout();
+        rightColumn.scrollLeft = savedScrollLeft;
+      }
+
+      selectClip(clip.id);
+
+      if (wasPlayingBeforeTrim) {
+        wasPlayingBeforeTrim = false;
+        startAllSources(currentPlayheadTime);
+      }
+
+      notifyParent('CLIP_TRIMMED', { clipId: clip.id, startTime: clip.startTime, duration: clip.duration });
+    }
+
+    function drawWaveformRange(canvas, buffer, offsetSec, durationSec, widthPx, heightPx) {
+      if (!canvas || !buffer) return;
+      const w = Math.max(4, Math.round(widthPx));
+      const h = Math.max(10, Math.round(heightPx));
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+
+      const ctx = canvas.getContext('2d');
+      ctx.resetTransform ? ctx.resetTransform() : ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+
+      ctx.clearRect(0, 0, w, h);
+
+      const rawData = buffer.getChannelData(0);
+      const totalSamples = rawData.length;
+      const sampleRate = buffer.sampleRate;
+
+      ctx.fillStyle = '#111111';
+      const barStep = 3;
+      const totalBars = Math.floor(w / barStep);
+
+      for (let i = 0; i < totalBars; i++) {
+        const x = i * barStep;
+        const tStart = offsetSec + (i / totalBars) * durationSec;
+        const tEnd = offsetSec + ((i + 1) / totalBars) * durationSec;
+
+        const idxStart = Math.max(0, Math.floor(tStart * sampleRate));
+        const idxEnd = Math.min(totalSamples, Math.ceil(tEnd * sampleRate));
+
+        let max = 0;
+        const count = idxEnd - idxStart;
+        const stride = Math.max(1, Math.floor(count / 30));
+        for (let s = idxStart; s < idxEnd; s += stride) {
+          const val = Math.abs(rawData[s] || 0);
+          if (val > max) max = val;
+        }
+
+        const barHeight = Math.max(2, max * (h * 0.85));
+        const y = (h - barHeight) / 2;
+        ctx.fillRect(x, y, 2, barHeight);
+      }
+    }
+
+    function drawClipWaveform(clip, canvas) {
+      if (!canvas || !clip.element) return;
+      const w = clip.element.offsetWidth;
+      const h = clip.element.offsetHeight || 64;
+      if (w <= 0 || h <= 0) return;
+
+      canvas.style.left = '0px';
+      canvas.style.width = '100%';
+
+      drawWaveformRange(canvas, clip.buffer, 0, clip.duration, w, h);
+    }
+
+    function sliceAudioBuffer(ctx, origBuffer, startSec, endSec) {
+      const sampleRate = origBuffer.sampleRate;
+      const numChannels = origBuffer.numberOfChannels;
+      const startSample = Math.max(0, Math.floor(startSec * sampleRate));
+      const endSample = Math.min(origBuffer.length, Math.floor(endSec * sampleRate));
+      const frameCount = endSample - startSample;
+
+      if (frameCount <= 0) return null;
+
+      const newBuffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+      for (let ch = 0; ch < numChannels; ch++) {
+        const srcData = origBuffer.getChannelData(ch);
+        const destData = newBuffer.getChannelData(ch);
+        destData.set(srcData.subarray(startSample, endSample));
+      }
+      return newBuffer;
+    }
+
+    const selectedClipIds = new Set();
+    let selectedClipId = null;
+
+    function updateClipVisualSelection(clipId, isSelected) {
+      const el = document.getElementById(`clip-${clipId}`);
+      if (!el) return;
+      if (isSelected) {
+        el.classList.remove('is-selected');
+        void el.offsetWidth;
+        el.classList.add('is-selected');
+      } else {
+        el.classList.remove('is-selected');
+      }
+    }
+
+    function selectClip(clipId, isAdditive = false) {
+      if (!isAdditive) {
+        selectedClipIds.forEach(id => {
+          if (id !== clipId) updateClipVisualSelection(id, false);
+        });
+        selectedClipIds.clear();
+      }
+
+      if (clipId) {
+        selectedClipIds.add(clipId);
+        selectedClipId = clipId;
+        updateClipVisualSelection(clipId, true);
+        notifyParent('CLIPS_SELECTED', { ids: Array.from(selectedClipIds), count: selectedClipIds.size, primaryId: clipId });
+        notifyParent('CLIP_SELECTED', { id: clipId });
+      } else {
+        if (!isAdditive) {
+          selectedClipId = null;
+          notifyParent('CLIP_DESELECTED');
+        }
+      }
+    }
+
+    function selectMultipleClips(clipIds, isAdditive = false) {
+      if (!isAdditive) {
+        selectedClipIds.forEach(id => updateClipVisualSelection(id, false));
+        selectedClipIds.clear();
+      }
+      (clipIds || []).forEach(id => {
+        selectedClipIds.add(id);
+        updateClipVisualSelection(id, true);
+      });
+      selectedClipId = selectedClipIds.size > 0 ? Array.from(selectedClipIds)[selectedClipIds.size - 1] : null;
+      if (selectedClipIds.size > 0) {
+        notifyParent('CLIPS_SELECTED', { ids: Array.from(selectedClipIds), count: selectedClipIds.size, primaryId: selectedClipId });
+        notifyParent('CLIP_SELECTED', { id: selectedClipId });
+      } else {
+        notifyParent('CLIP_DESELECTED');
+      }
+    }
+
+    function toggleClipSelection(clipId) {
+      if (selectedClipIds.has(clipId)) {
+        selectedClipIds.delete(clipId);
+        updateClipVisualSelection(clipId, false);
+        selectedClipId = selectedClipIds.size > 0 ? Array.from(selectedClipIds)[selectedClipIds.size - 1] : null;
+      } else {
+        selectedClipIds.add(clipId);
+        updateClipVisualSelection(clipId, true);
+        selectedClipId = clipId;
+      }
+      if (selectedClipIds.size > 0) {
+        notifyParent('CLIPS_SELECTED', { ids: Array.from(selectedClipIds), count: selectedClipIds.size, primaryId: selectedClipId });
+        notifyParent('CLIP_SELECTED', { id: selectedClipId });
+      } else {
+        notifyParent('CLIP_DESELECTED');
+      }
+    }
+
+    function clearClipSelection() {
+      if (selectedClipIds.size === 0 && !selectedClipId) return;
+      selectedClipIds.forEach(id => updateClipVisualSelection(id, false));
+      selectedClipIds.clear();
+      selectedClipId = null;
+      notifyParent('CLIP_DESELECTED');
+    }
+
+    function selectAllClips() {
+      const allIds = [];
+      tracks.forEach(t => {
+        (t.clips || []).forEach(c => allIds.push(c.id));
+      });
+      selectMultipleClips(allIds, false);
+      if (allIds.length > 0) {
+        showTimelineToast(`Selected ${allIds.length} clip${allIds.length > 1 ? 's' : ''}`);
+      }
+    }
+
+    function splitSelectedTrack() {
+      if (tracks.length === 0) return;
+
+      let targetClip = null;
+      let parentTrack = null;
+
+      if (selectedClipId) {
+        for (const t of tracks) {
+          const c = t.clips.find(x => x.id === selectedClipId);
+          if (c) { targetClip = c; parentTrack = t; break; }
+        }
+      }
+
+      if (!targetClip) {
+        for (const t of tracks) {
+          const c = t.clips.find(x => currentPlayheadTime >= x.startTime && currentPlayheadTime <= x.startTime + x.duration);
+          if (c) { targetClip = c; parentTrack = t; break; }
+        }
+      }
+
+      if (!targetClip && tracks.length > 0 && tracks[0].clips.length > 0) {
+        parentTrack = tracks[0];
+        targetClip = parentTrack.clips[0];
+      }
+
+      if (!targetClip || !parentTrack || targetClip.duration <= 0.2) return;
+
+      let cutOffset = targetClip.duration / 2;
+      if (currentPlayheadTime > targetClip.startTime + 0.1 && currentPlayheadTime < targetClip.startTime + targetClip.duration - 0.1) {
+        cutOffset = currentPlayheadTime - targetClip.startTime;
+      }
+
+      const buf1 = sliceAudioBuffer(audioContext, targetClip.buffer, 0, cutOffset);
+      const buf2 = sliceAudioBuffer(audioContext, targetClip.buffer, cutOffset, targetClip.duration);
+      if (!buf1 || !buf2) return;
+
+      pushHistorySnapshot();
+
+      const wasPlaying = isPlaying;
+      if (isPlaying) stopAllSources();
+
+      const targetSourceBuffer = targetClip.sourceBuffer || targetClip.buffer;
+      const targetSourceOffset = targetClip.sourceOffset || 0;
+
+      const clip1 = {
+        id: 'clip_' + Date.now() + '_1',
+        name: targetClip.name,
+        startTime: targetClip.startTime,
+        duration: buf1.duration,
+        buffer: buf1,
+        sourceBuffer: targetSourceBuffer,
+        sourceOffset: targetSourceOffset,
+        fadeIn: Math.min(targetClip.fadeIn || 0, buf1.duration),
+        fadeOut: 0,
+        fadeInCurve: targetClip.fadeInCurve || 0,
+        fadeOutCurve: 0
+      };
+
+      const clip2 = {
+        id: 'clip_' + Date.now() + '_2',
+        name: targetClip.name,
+        startTime: targetClip.startTime + cutOffset,
+        duration: buf2.duration,
+        buffer: buf2,
+        sourceBuffer: targetSourceBuffer,
+        sourceOffset: targetSourceOffset + cutOffset,
+        fadeIn: 0,
+        fadeOut: Math.min(targetClip.fadeOut || 0, buf2.duration),
+        fadeInCurve: 0,
+        fadeOutCurve: targetClip.fadeOutCurve || 0
+      };
+
+      const clipIdx = parentTrack.clips.indexOf(targetClip);
+      parentTrack.clips.splice(clipIdx, 1, clip1, clip2);
+
+      const savedScrollLeft = rightColumn.scrollLeft;
+      renderTrackClips(parentTrack);
+      recalcMaxDuration();
+      updateClipsLayout();
+      rightColumn.scrollLeft = savedScrollLeft;
+      selectClip(clip2.id);
+
+      if (wasPlaying) {
+        startAllSources(currentPlayheadTime);
+      }
+
+      notifyParent('CLIP_SPLIT', { trackId: parentTrack.id, clip1: clip1.id, clip2: clip2.id });
+    }
+
+    function getTargetClipAtPlayhead() {
+      if (tracks.length === 0) return null;
+
+      // 1. If a clip is selected and playhead is strictly inside it
+      if (selectedClipId) {
+        for (const t of tracks) {
+          const c = t.clips.find(x => x.id === selectedClipId);
+          if (c && currentPlayheadTime > c.startTime + 0.02 && currentPlayheadTime < c.startTime + c.duration - 0.02) {
+            return { track: t, clip: c };
+          }
+        }
+      }
+
+      // 2. Otherwise find clip on any track under playhead
+      for (const t of tracks) {
+        const c = t.clips.find(x => currentPlayheadTime > x.startTime + 0.02 && currentPlayheadTime < x.startTime + x.duration - 0.02);
+        if (c) {
+          return { track: t, clip: c };
+        }
+      }
+
+      return null;
+    }
+
+    function trimStartToPlayhead() {
+      const target = getTargetClipAtPlayhead();
+      if (!target) return;
+
+      const parentTrack = target.track;
+      const targetClip = target.clip;
+
+      const cutOffset = currentPlayheadTime - targetClip.startTime;
+      if (cutOffset <= 0.02 || (targetClip.duration - cutOffset) <= 0.02) return;
+
+      const newBuffer = sliceAudioBuffer(audioContext, targetClip.buffer, cutOffset, targetClip.duration);
+      if (!newBuffer) return;
+
+      pushHistorySnapshot();
+
+      const wasPlaying = isPlaying;
+      if (isPlaying) stopAllSources();
+
+      if (!targetClip.sourceBuffer) {
+        targetClip.sourceBuffer = targetClip.buffer;
+        targetClip.sourceOffset = 0;
+      }
+      targetClip.sourceOffset = (targetClip.sourceOffset || 0) + cutOffset;
+      targetClip.startTime = currentPlayheadTime;
+      targetClip.duration = newBuffer.duration;
+      targetClip.buffer = newBuffer;
+      targetClip.fadeIn = 0;
+      targetClip.fadeOut = Math.min(targetClip.fadeOut || 0, newBuffer.duration);
+
+      const savedScrollLeft = rightColumn.scrollLeft;
+      renderTrackClips(parentTrack);
+      recalcMaxDuration();
+      updateClipsLayout();
+      rightColumn.scrollLeft = savedScrollLeft;
+      selectClip(targetClip.id);
+
+      if (wasPlaying) {
+        startAllSources(currentPlayheadTime);
+      }
+
+      notifyParent('CLIP_TRIMMED_START', { trackId: parentTrack.id, clipId: targetClip.id, newStartTime: targetClip.startTime, newDuration: targetClip.duration });
+    }
+
+    function trimEndToPlayhead() {
+      const target = getTargetClipAtPlayhead();
+      if (!target) return;
+
+      const parentTrack = target.track;
+      const targetClip = target.clip;
+
+      const cutOffset = currentPlayheadTime - targetClip.startTime;
+      if (cutOffset <= 0.02 || (targetClip.duration - cutOffset) <= 0.02) return;
+
+      const newBuffer = sliceAudioBuffer(audioContext, targetClip.buffer, 0, cutOffset);
+      if (!newBuffer) return;
+
+      pushHistorySnapshot();
+
+      const wasPlaying = isPlaying;
+      if (isPlaying) stopAllSources();
+
+      if (!targetClip.sourceBuffer) {
+        targetClip.sourceBuffer = targetClip.buffer;
+        targetClip.sourceOffset = 0;
+      }
+      targetClip.duration = newBuffer.duration;
+      targetClip.buffer = newBuffer;
+      targetClip.fadeIn = Math.min(targetClip.fadeIn || 0, newBuffer.duration);
+      targetClip.fadeOut = 0;
+
+      const savedScrollLeft = rightColumn.scrollLeft;
+      renderTrackClips(parentTrack);
+      recalcMaxDuration();
+      updateClipsLayout();
+      rightColumn.scrollLeft = savedScrollLeft;
+      selectClip(targetClip.id);
+
+      if (wasPlaying) {
+        startAllSources(currentPlayheadTime);
+      }
+
+      notifyParent('CLIP_TRIMMED_END', { trackId: parentTrack.id, clipId: targetClip.id, newStartTime: targetClip.startTime, newDuration: targetClip.duration });
+    }
+
+    function deleteSelectedClip() {
+      if ((!selectedClipId && selectedClipIds.size === 0) || tracks.length === 0) return;
+
+      const idsToDelete = new Set(selectedClipIds);
+      if (selectedClipId) idsToDelete.add(selectedClipId);
+      if (idsToDelete.size === 0) return;
+
+      pushHistorySnapshot();
+
+      const wasPlaying = isPlaying;
+      if (isPlaying) {
+        stopAllSources();
+      }
+
+      const count = idsToDelete.size;
+      const affectedTracks = new Set();
+      const tracksToRemove = [];
+
+      tracks.forEach(t => {
+        if (!t.clips) return;
+        const initialCount = t.clips.length;
+        t.clips = t.clips.filter(c => !idsToDelete.has(c.id));
+        if (t.clips.length !== initialCount) {
+          affectedTracks.add(t);
+          if (t.clips.length === 0) {
+            tracksToRemove.push(t);
+          }
+        }
+      });
+
+      tracksToRemove.forEach(t => {
+        const tIdx = tracks.indexOf(t);
+        if (tIdx !== -1) tracks.splice(tIdx, 1);
+        const headerEl = document.getElementById(`header-${t.id}`);
+        if (headerEl) headerEl.remove();
+        const laneEl = document.getElementById(`lane-${t.id}`);
+        if (laneEl) laneEl.remove();
+        affectedTracks.delete(t);
+      });
+
+      affectedTracks.forEach(t => {
+        renderTrackClips(t);
+      });
+
+      clearClipSelection();
+
+      if (tracks.length === 0) {
+        emptyState.style.display = 'flex';
+        globalPlayhead.style.display = 'none';
+        maxDuration = 0;
+        freeTimelineDuration = 0;
+        currentPlayheadTime = 0;
+        updatePlayheadPosition();
+        notifyParent('ALL_TRACKS_REMOVED');
+        notifyParent('TIME_UPDATE', { time: 0 });
+      } else {
+        const savedScrollLeft = rightColumn.scrollLeft;
+        recalcMaxDuration();
+        applyZoom();
+        rightColumn.scrollLeft = Math.min(savedScrollLeft, Math.max(0, rightColumn.scrollWidth - rightColumn.clientWidth));
+      }
+
+      if (wasPlaying && tracks.length > 0) {
+        startAllSources(currentPlayheadTime);
+      }
+
+      showTimelineToast(count > 1 ? `Deleted ${count} clips` : `Clip deleted`);
+      notifyParent('CLIP_DELETED', { count: count });
+    }
+
+    let trackToDelete = null;
+
+    function confirmDeleteTrack(track) {
+      if (!track) return;
+      trackToDelete = track;
+      const modal = document.getElementById('confirm-modal-overlay');
+      const modalText = document.getElementById('confirm-modal-text');
+      if (modalText) {
+        modalText.textContent = `Are you sure you want to delete "${track.name || 'this track'}"? This action cannot be undone.`;
+      }
+      if (modal) {
+        modal.classList.add('is-active');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+    }
+
+    function closeConfirmModal() {
+      trackToDelete = null;
+      const modal = document.getElementById('confirm-modal-overlay');
+      if (modal) {
+        modal.classList.remove('is-active');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    function deleteTrack(track) {
+      if (!track) return;
+      const trackIdx = tracks.indexOf(track);
+      if (trackIdx === -1) return;
+
+      pushHistorySnapshot();
+
+      const wasPlaying = isPlaying;
+      if (isPlaying) {
+        stopAllSources();
+      }
+
+      // If clips on this track were selected, clean them from selection
+      if (track.clips) {
+        track.clips.forEach(c => {
+          if (selectedClipIds.has(c.id)) {
+            selectedClipIds.delete(c.id);
+          }
+        });
+        if (selectedClipId && track.clips.some(c => c.id === selectedClipId)) {
+          selectedClipId = selectedClipIds.size > 0 ? Array.from(selectedClipIds)[selectedClipIds.size - 1] : null;
+        }
+      }
+
+      // Disconnect gain node if exists
+      if (track.gainNode) {
+        try {
+          track.gainNode.disconnect();
+        } catch (e) {}
+      }
+
+      // Remove from tracks array
+      tracks.splice(trackIdx, 1);
+
+      // Remove DOM elements
+      const headerEl = document.getElementById(`header-${track.id}`);
+      if (headerEl) headerEl.remove();
+
+      const laneEl = document.getElementById(`lane-${track.id}`);
+      if (laneEl) laneEl.remove();
+
+      if (tracks.length === 0) {
+        emptyState.style.display = 'flex';
+        globalPlayhead.style.display = 'none';
+        maxDuration = 0;
+        freeTimelineDuration = 0;
+        currentPlayheadTime = 0;
+        updatePlayheadPosition();
+        notifyParent('ALL_TRACKS_REMOVED');
+        notifyParent('TIME_UPDATE', { time: 0 });
+      } else {
+        const savedScrollLeft = rightColumn.scrollLeft;
+        recalcMaxDuration();
+        applyZoom();
+        rightColumn.scrollLeft = Math.min(savedScrollLeft, Math.max(0, rightColumn.scrollWidth - rightColumn.clientWidth));
+      }
+
+      if (wasPlaying && tracks.length > 0) {
+        startAllSources(currentPlayheadTime);
+      }
+
+      notifyParent('TRACK_DELETED', { trackId: track.id });
+    }
+
+    // ==========================================
+    // UNDO / REDO ENGINE
+    // ==========================================
+    const undoStack = [];
+    const redoStack = [];
+    const MAX_HISTORY_STEPS = 50;
+    let isPerformingUndoRedo = false;
+
+    // Snapshot variables for drags
+    let dragInitialSnapshot = null;
+    let trimDragInitialSnapshot = null;
+    let fadeDragInitialSnapshot = null;
+    let trackDragInitialSnapshot = null;
+
+    function showTimelineToast(message) {
+      let toast = document.getElementById('timeline-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'timeline-toast';
+        toast.className = 'timeline-toast';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = message;
+      toast.classList.add('is-active');
+      if (toast._hideTimeout) clearTimeout(toast._hideTimeout);
+      toast._hideTimeout = setTimeout(() => {
+        toast.classList.remove('is-active');
+      }, 1200);
+    }
+
+    function captureSnapshot() {
+      return {
+        freeTimelineDuration: freeTimelineDuration,
+        maxDuration: maxDuration,
+        selectedClipId: selectedClipId,
+        selectedClipIds: Array.from(selectedClipIds),
+        tracks: tracks.map(t => ({
+          id: t.id,
+          name: t.name,
+          volume: t.volume !== undefined ? t.volume : 100,
+          clips: (t.clips || []).map(c => ({
+            id: c.id,
+            name: c.name,
+            startTime: c.startTime,
+            duration: c.duration,
+            buffer: c.buffer,
+            sourceBuffer: c.sourceBuffer || c.buffer,
+            sourceOffset: c.sourceOffset || 0,
+            fadeIn: c.fadeIn || 0,
+            fadeOut: c.fadeOut || 0,
+            fadeInCurve: c.fadeInCurve || 0,
+            fadeOutCurve: c.fadeOutCurve || 0
+          }))
+        }))
+      };
+    }
+
+    function pushHistorySnapshot() {
+      if (isPerformingUndoRedo) return;
+      const snapshot = captureSnapshot();
+      undoStack.push(snapshot);
+      if (undoStack.length > MAX_HISTORY_STEPS) {
+        undoStack.shift();
+      }
+      redoStack.length = 0;
+      notifyParent('HISTORY_STATE', { canUndo: undoStack.length > 0, canRedo: false });
+      notifyParent('TIMELINE_MUTATED');
+    }
+
+    function restoreSnapshot(snapshot) {
+      if (!snapshot) return;
+
+      const wasPlaying = isPlaying;
+      if (isPlaying) {
+        stopAllSources();
+      }
+
+      // 1. Disconnect and clean up existing tracks
+      tracks.forEach(t => {
+        if (t.gainNode) {
+          try { t.gainNode.disconnect(); } catch (e) {}
+        }
+      });
+
+      // 2. Clear DOM lists
+      headersList.innerHTML = '';
+      wavesList.innerHTML = '';
+      tracks.length = 0;
+
+      // 3. Rebuild tracks
+      (snapshot.tracks || []).forEach(sTrack => {
+        const gainNode = audioContext.createGain();
+        const vol = sTrack.volume !== undefined ? sTrack.volume : 100;
+        gainNode.gain.value = vol / 100;
+        gainNode.connect(audioContext.destination);
+
+        const newTrack = {
+          id: sTrack.id,
+          name: sTrack.name,
+          duration: 0,
+          gainNode: gainNode,
+          volume: vol,
+          clips: (sTrack.clips || []).map(sClip => ({
+            id: sClip.id,
+            name: sClip.name,
+            startTime: sClip.startTime,
+            duration: sClip.duration,
+            buffer: sClip.buffer,
+            sourceBuffer: sClip.sourceBuffer || sClip.buffer,
+            sourceOffset: sClip.sourceOffset || 0,
+            fadeIn: sClip.fadeIn || 0,
+            fadeOut: sClip.fadeOut || 0,
+            fadeInCurve: sClip.fadeInCurve || 0,
+            fadeOutCurve: sClip.fadeOutCurve || 0
+          }))
+        };
+
+        let tDur = 0;
+        newTrack.clips.forEach(c => {
+          tDur = Math.max(tDur, (c.startTime || 0) + (c.duration || 0));
+        });
+        newTrack.duration = tDur;
+
+        tracks.push(newTrack);
+        renderTrackRow(newTrack);
+      });
+
+      // 4. Update empty state or timeline duration
+      if (tracks.length === 0) {
+        emptyState.style.display = 'flex';
+        globalPlayhead.style.display = 'none';
+        maxDuration = 0;
+        freeTimelineDuration = 0;
+        currentPlayheadTime = 0;
+        updatePlayheadPosition();
+        notifyParent('ALL_TRACKS_REMOVED');
+        notifyParent('TIME_UPDATE', { time: 0 });
+      } else {
+        emptyState.style.display = 'none';
+        globalPlayhead.style.display = 'block';
+        freeTimelineDuration = snapshot.freeTimelineDuration || 0;
+        recalcMaxDuration();
+        applyZoom();
+        notifyParent('TRACK_ADDED', { count: tracks.length });
+      }
+
+      // 5. Restore selection
+      if (snapshot.selectedClipIds && snapshot.selectedClipIds.length > 0) {
+        selectMultipleClips(snapshot.selectedClipIds);
+      } else if (snapshot.selectedClipId) {
+        selectClip(snapshot.selectedClipId);
+      } else {
+        clearClipSelection();
+      }
+
+      // 6. Keep playhead bounded and position updated
+      if (maxDuration > 0) {
+        currentPlayheadTime = Math.min(currentPlayheadTime, maxDuration);
+      } else {
+        currentPlayheadTime = 0;
+      }
+      updatePlayheadPosition();
+      notifyParent('TIME_UPDATE', { time: currentPlayheadTime });
+
+      if (wasPlaying && tracks.length > 0) {
+        startAllSources(currentPlayheadTime);
+      }
+    }
+
+    function undo() {
+      if (undoStack.length === 0) {
+        showTimelineToast('Nothing to undo');
+        return;
+      }
+      isPerformingUndoRedo = true;
+      try {
+        const currentSnapshot = captureSnapshot();
+        redoStack.push(currentSnapshot);
+        const previousSnapshot = undoStack.pop();
+        restoreSnapshot(previousSnapshot);
+        showTimelineToast('↺ Undo');
+        notifyParent('HISTORY_STATE', { canUndo: undoStack.length > 0, canRedo: redoStack.length > 0 });
+      } finally {
+        isPerformingUndoRedo = false;
+      }
+    }
+
+    function redo() {
+      if (redoStack.length === 0) {
+        showTimelineToast('Nothing to redo');
+        return;
+      }
+      isPerformingUndoRedo = true;
+      try {
+        const currentSnapshot = captureSnapshot();
+        undoStack.push(currentSnapshot);
+        const nextSnapshot = redoStack.pop();
+        restoreSnapshot(nextSnapshot);
+        showTimelineToast('↻ Redo');
+        notifyParent('HISTORY_STATE', { canUndo: undoStack.length > 0, canRedo: redoStack.length > 0 });
+      } finally {
+        isPerformingUndoRedo = false;
+      }
+    }
+
+    let isMarqueeSelecting = false;
+    let marqueeStartX = 0;
+    let marqueeStartY = 0;
+    let wasMarqueeDraggingJustNow = false;
+    let marqueeAdditive = false;
+    let marqueeInitialSelection = new Set();
+
+    function startMarqueeSelection(e) {
+      if (e.button !== 0) return;
+      if (tracks.length === 0) return;
+
+      marqueeStartX = e.clientX;
+      marqueeStartY = e.clientY;
+      isMarqueeSelecting = false;
+      marqueeAdditive = e.ctrlKey || e.metaKey || e.shiftKey;
+      marqueeInitialSelection = new Set(selectedClipIds);
+
+      window.addEventListener('mousemove', onMarqueeMove);
+      window.addEventListener('mouseup', onMarqueeEnd);
+    }
+
+    function onMarqueeMove(e) {
+      const dx = e.clientX - marqueeStartX;
+      const dy = e.clientY - marqueeStartY;
+
+      if (!isMarqueeSelecting && Math.hypot(dx, dy) > 4) {
+        isMarqueeSelecting = true;
+        document.body.style.userSelect = 'none';
+        if (marqueeEl) marqueeEl.style.display = 'block';
+      }
+
+      if (!isMarqueeSelecting) return;
+
+      // Auto-scroll when near edges of rightColumn
+      const colRect = rightColumn.getBoundingClientRect();
+      const edgeThreshold = 35;
+      if (e.clientX > colRect.right - edgeThreshold) {
+        rightColumn.scrollLeft += 12;
+      } else if (e.clientX < colRect.left + edgeThreshold) {
+        rightColumn.scrollLeft = Math.max(0, rightColumn.scrollLeft - 12);
+      }
+      if (e.clientY > colRect.bottom - edgeThreshold) {
+        rightColumn.scrollTop += 10;
+        headersViewport.scrollTop = rightColumn.scrollTop;
+      } else if (e.clientY < colRect.top + edgeThreshold) {
+        rightColumn.scrollTop = Math.max(0, rightColumn.scrollTop - 10);
+        headersViewport.scrollTop = rightColumn.scrollTop;
+      }
+
+      // Compute bounding box in gridContent coordinates
+      const gridRect = gridContent.getBoundingClientRect();
+      const currentX = e.clientX;
+      const currentY = e.clientY;
+
+      const clientLeft = Math.min(marqueeStartX, currentX);
+      const clientTop = Math.min(marqueeStartY, currentY);
+      const clientRight = Math.max(marqueeStartX, currentX);
+      const clientBottom = Math.max(marqueeStartY, currentY);
+
+      if (marqueeEl) {
+        const elLeft = clientLeft - gridRect.left;
+        const elTop = clientTop - gridRect.top;
+        const elWidth = clientRight - clientLeft;
+        const elHeight = clientBottom - clientTop;
+        marqueeEl.style.left = `${elLeft}px`;
+        marqueeEl.style.top = `${elTop}px`;
+        marqueeEl.style.width = `${elWidth}px`;
+        marqueeEl.style.height = `${elHeight}px`;
+      }
+
+      // Collision detection with clips
+      const currentSelected = new Set(marqueeAdditive ? marqueeInitialSelection : []);
+
+      tracks.forEach(t => {
+        (t.clips || []).forEach(c => {
+          const clipEl = c.element || document.getElementById(`clip-${c.id}`);
+          if (!clipEl) return;
+          const cRect = clipEl.getBoundingClientRect();
+
+          const intersects = !(
+            cRect.right < clientLeft ||
+            cRect.left > clientRight ||
+            cRect.bottom < clientTop ||
+            cRect.top > clientBottom
+          );
+
+          if (intersects) {
+            currentSelected.add(c.id);
+          }
+        });
+      });
+
+      // Update visual selection in real time (60fps)
+      tracks.forEach(t => {
+        (t.clips || []).forEach(c => {
+          const isSelected = currentSelected.has(c.id);
+          updateClipVisualSelection(c.id, isSelected);
+        });
+      });
+
+      selectedClipIds.clear();
+      currentSelected.forEach(id => selectedClipIds.add(id));
+      selectedClipId = selectedClipIds.size > 0 ? Array.from(selectedClipIds)[selectedClipIds.size - 1] : null;
+    }
+
+    function onMarqueeEnd(e) {
+      window.removeEventListener('mousemove', onMarqueeMove);
+      window.removeEventListener('mouseup', onMarqueeEnd);
+
+      if (marqueeEl) marqueeEl.style.display = 'none';
+      document.body.style.userSelect = '';
+
+      if (isMarqueeSelecting) {
+        isMarqueeSelecting = false;
+        wasMarqueeDraggingJustNow = true;
+        setTimeout(() => {
+          wasMarqueeDraggingJustNow = false;
+        }, 100);
+
+        if (selectedClipIds.size > 0) {
+          notifyParent('CLIPS_SELECTED', { ids: Array.from(selectedClipIds), count: selectedClipIds.size, primaryId: selectedClipId });
+          notifyParent('CLIP_SELECTED', { id: selectedClipId });
+        } else {
+          notifyParent('CLIP_DESELECTED');
+        }
+      } else {
+        if (!marqueeAdditive) {
+          clearClipSelection();
+        }
+      }
+    }
+
+    rightColumn.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      if (e.target.closest('.audio-clip') ||
+          e.target.closest('.timeline-ruler-bar') ||
+          e.target.closest('.global-playhead') ||
+          e.target.closest('.empty-lane-placeholder') ||
+          e.target.closest('button') ||
+          e.target.closest('input')) {
+        return;
+      }
+      startMarqueeSelection(e);
+    });
+
+    rightColumn.addEventListener('click', (e) => {
+      if (wasMarqueeDraggingJustNow) return;
+      if (e.target === rightColumn || e.target === wavesList || e.target === gridContent) {
+        clearClipSelection();
+      }
+    });
+    headersViewport.addEventListener('click', (e) => {
+      if (e.target === headersViewport || e.target === headersList) {
+        clearClipSelection();
+      }
+    });
+
+    function redrawAll() {
+      updateRuler();
+      updateClipsLayout();
+      updatePlayheadPosition();
+    }
+
+    let isScrubbing = false;
+    let wasPlayingBeforeScrub = false;
+
+    function getTimeFromClientX(clientX) {
+      if (maxDuration <= 0) return 0;
+      const rect = rulerBar.getBoundingClientRect();
+      const offsetX = clientX - rect.left;
+      const laneWidth = rect.width;
+      if (laneWidth <= 0) return 0;
+      const ratio = Math.max(0, Math.min(1, offsetX / laneWidth));
+      return ratio * maxDuration;
+    }
+
+    function startScrubbing(e) {
+      if (maxDuration <= 0) return;
+      if (e.button !== 0) return;
+      if (e.target && e.target.closest && e.target.closest('.audio-clip')) return;
+
+      isScrubbing = true;
+      wasPlayingBeforeScrub = isPlaying;
+      if (isPlaying) {
+        stopAllSources();
+      }
+
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'ew-resize';
+
+      const targetTime = getTimeFromClientX(e.clientX);
+      currentPlayheadTime = targetTime;
+      updatePlayheadPosition();
+      notifyParent('TIME_UPDATE', { time: currentPlayheadTime });
+
+      window.addEventListener('mousemove', onScrubMove);
+      window.addEventListener('mouseup', onScrubEnd);
+    }
+
+    function onScrubMove(e) {
+      if (!isScrubbing) return;
+      const targetTime = getTimeFromClientX(e.clientX);
+      currentPlayheadTime = targetTime;
+      updatePlayheadPosition();
+      notifyParent('TIME_UPDATE', { time: currentPlayheadTime });
+    }
+
+    function onScrubEnd(e) {
+      if (!isScrubbing) return;
+      isScrubbing = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+
+      window.removeEventListener('mousemove', onScrubMove);
+      window.removeEventListener('mouseup', onScrubEnd);
+
+      seekTo(currentPlayheadTime);
+      if (wasPlayingBeforeScrub) {
+        startAllSources(currentPlayheadTime);
+      }
+    }
+
+    rulerBar.addEventListener('mousedown', startScrubbing);
+    globalPlayhead.addEventListener('mousedown', startScrubbing);
+
+    function seekTo(time) {
+      currentPlayheadTime = Math.max(0, Math.min(maxDuration, time));
+      updatePlayheadPosition();
+      notifyParent('TIME_UPDATE', { time: currentPlayheadTime });
+
+      if (isPlaying) {
+        stopAllSources();
+        startAllSources(currentPlayheadTime);
+      }
+    }
+
+    function updatePlayheadPosition() {
+      if (maxDuration <= 0) return;
+      const currentLaneWidth = rulerBar.offsetWidth;
+      const ratio = Math.max(0, Math.min(1, currentPlayheadTime / maxDuration));
+      const leftPos = ratio * currentLaneWidth;
+      globalPlayhead.style.left = `${leftPos}px`;
+    }
+
+    function isPlayheadOutsideView() {
+      if (maxDuration <= 0) return false;
+      const currentLaneWidth = rulerBar.offsetWidth;
+      if (currentLaneWidth <= 0) return false;
+      const ratio = Math.max(0, Math.min(1, currentPlayheadTime / maxDuration));
+      const playheadX = ratio * currentLaneWidth;
+
+      const viewLeft = rightColumn.scrollLeft;
+      const viewWidth = rightColumn.clientWidth;
+      const viewRight = viewLeft + viewWidth;
+
+      return (playheadX < viewLeft) || (playheadX > viewRight);
+    }
+
+    function scrollPlayheadIntoView(forceCenter = false) {
+      if (maxDuration <= 0) return;
+      const currentLaneWidth = rulerBar.offsetWidth;
+      if (currentLaneWidth <= 0) return;
+      const ratio = Math.max(0, Math.min(1, currentPlayheadTime / maxDuration));
+      const playheadX = ratio * currentLaneWidth;
+
+      const viewLeft = rightColumn.scrollLeft;
+      const viewWidth = rightColumn.clientWidth;
+      const viewRight = viewLeft + viewWidth;
+
+      const isOutside = (playheadX < viewLeft) || (playheadX > viewRight);
+
+      if (isOutside || forceCenter) {
+        const targetScrollLeft = Math.max(0, Math.round(playheadX - (viewWidth / 2)));
+        rightColumn.scrollLeft = targetScrollLeft;
+      }
+    }
+
+    function generateFadeCurveValues(type, tension, numPoints = 64, startU = 0) {
+      const curve = new Float32Array(numPoints);
+      const cGain = 0.5 + 0.5 * Math.max(-1, Math.min(1, tension));
+      for (let i = 0; i < numPoints; i++) {
+        const u = startU + (1 - startU) * (i / (numPoints - 1));
+        if (type === 'in') {
+          const g = (1 - u) * (1 - u) * 0 + 2 * (1 - u) * u * cGain + u * u * 1;
+          curve[i] = Math.max(0, Math.min(1, g));
+        } else {
+          const g = (1 - u) * (1 - u) * 1 + 2 * (1 - u) * u * cGain + u * u * 0;
+          curve[i] = Math.max(0, Math.min(1, g));
+        }
+      }
+      return curve;
+    }
+
+    function startAllSources(offset = 0) {
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+
+      stopAllSources();
+
+      const now = audioContext.currentTime;
+
+      tracks.forEach(track => {
+        track.clips.forEach(clip => {
+          const clipStart = clip.startTime || 0;
+          const clipEnd = clipStart + clip.duration;
+
+          if (offset < clipEnd) {
+            const source = audioContext.createBufferSource();
+            source.buffer = clip.buffer;
+
+            const clipGainNode = audioContext.createGain();
+            source.connect(clipGainNode);
+            clipGainNode.connect(track.gainNode);
+
+            const fadeIn = Math.max(0, Math.min(clip.duration, clip.fadeIn || 0));
+            const fadeOut = Math.max(0, Math.min(clip.duration - fadeIn, clip.fadeOut || 0));
+
+            let clipPlayStartTime;
+            if (offset <= clipStart) {
+              const delay = clipStart - offset;
+              clipPlayStartTime = now + delay;
+              source.start(clipPlayStartTime, 0);
+            } else {
+              const bufferOffset = offset - clipStart;
+              clipPlayStartTime = now - bufferOffset;
+              source.start(now, bufferOffset);
+            }
+
+            const clipPlayEndTime = clipPlayStartTime + clip.duration;
+
+            // Schedule Gain Envelope for Fades:
+            if (fadeIn <= 0 && fadeOut <= 0) {
+              clipGainNode.gain.setValueAtTime(1, now);
+            } else {
+              // Fade In
+              if (fadeIn > 0) {
+                const fadeInEndTime = clipPlayStartTime + fadeIn;
+                const inCurve = clip.fadeInCurve || 0;
+                if (offset <= clipStart) {
+                  if (Math.abs(inCurve) < 0.01) {
+                    clipGainNode.gain.setValueAtTime(0, clipPlayStartTime);
+                    clipGainNode.gain.linearRampToValueAtTime(1, fadeInEndTime);
+                  } else {
+                    const curveVals = generateFadeCurveValues('in', inCurve, 64, 0);
+                    clipGainNode.gain.setValueCurveAtTime(curveVals, clipPlayStartTime, fadeIn);
+                  }
+                } else if (offset < clipStart + fadeIn) {
+                  const curFraction = (offset - clipStart) / fadeIn;
+                  const remainingDuration = fadeInEndTime - now;
+                  if (remainingDuration > 0.01) {
+                    if (Math.abs(inCurve) < 0.01) {
+                      clipGainNode.gain.setValueAtTime(curFraction, now);
+                      clipGainNode.gain.linearRampToValueAtTime(1, fadeInEndTime);
+                    } else {
+                      const curveVals = generateFadeCurveValues('in', inCurve, 64, curFraction);
+                      clipGainNode.gain.setValueCurveAtTime(curveVals, now, remainingDuration);
+                    }
+                  }
+                } else {
+                  clipGainNode.gain.setValueAtTime(1, now);
+                }
+              } else {
+                clipGainNode.gain.setValueAtTime(1, now);
+              }
+
+              // Fade Out
+              if (fadeOut > 0) {
+                const fadeOutStartTime = clipPlayEndTime - fadeOut;
+                const fadeOutStartTimelineTime = clipEnd - fadeOut;
+                const outCurve = clip.fadeOutCurve || 0;
+
+                if (offset <= fadeOutStartTimelineTime) {
+                  if (Math.abs(outCurve) < 0.01) {
+                    clipGainNode.gain.setValueAtTime(1, fadeOutStartTime);
+                    clipGainNode.gain.linearRampToValueAtTime(0, clipPlayEndTime);
+                  } else {
+                    const curveVals = generateFadeCurveValues('out', outCurve, 64, 0);
+                    clipGainNode.gain.setValueCurveAtTime(curveVals, fadeOutStartTime, fadeOut);
+                  }
+                } else if (offset < clipEnd) {
+                  const curFraction = (offset - fadeOutStartTimelineTime) / fadeOut;
+                  const remainingDuration = clipPlayEndTime - now;
+                  if (remainingDuration > 0.01) {
+                    if (Math.abs(outCurve) < 0.01) {
+                      const startGain = 1 - curFraction;
+                      clipGainNode.gain.setValueAtTime(startGain, now);
+                      clipGainNode.gain.linearRampToValueAtTime(0, clipPlayEndTime);
+                    } else {
+                      const curveVals = generateFadeCurveValues('out', outCurve, 64, curFraction);
+                      clipGainNode.gain.setValueCurveAtTime(curveVals, now, remainingDuration);
+                    }
+                  }
+                }
+              }
+            }
+
+            activeSources.push({ source, gainNode: clipGainNode });
+          }
+        });
+      });
+
+      startTime = now - offset;
+      isPlaying = true;
+      notifyParent('PLAY_STATE', { isPlaying: true });
+      notifyParent('TIME_UPDATE', { time: offset });
+      runPlayheadLoop();
+    }
+
+    function stopAllSources() {
+      activeSources.forEach(item => {
+        if (item.source) {
+          try { item.source.stop(); } catch (_) {}
+          try { item.source.disconnect(); } catch (_) {}
+        } else if (item.stop) {
+          try { item.stop(); } catch (_) {}
+          try { item.disconnect(); } catch (_) {}
+        }
+        if (item.gainNode) {
+          try { item.gainNode.gain.cancelScheduledValues(audioContext.currentTime); } catch (_) {}
+          try { item.gainNode.disconnect(); } catch (_) {}
+        }
+      });
+      activeSources = [];
+      const wasPlaying = isPlaying;
+      isPlaying = false;
+      if (animFrame) cancelAnimationFrame(animFrame);
+      if (wasPlaying) {
+        notifyParent('PLAY_STATE', { isPlaying: false });
+      }
+    }
+
+    function runPlayheadLoop() {
+      if (!isPlaying) return;
+      currentPlayheadTime = audioContext.currentTime - startTime;
+
+      if (currentPlayheadTime >= maxDuration) {
+        stopAllSources();
+        currentPlayheadTime = 0;
+        updatePlayheadPosition();
+        rightColumn.scrollLeft = 0;
+        notifyParent('TIME_UPDATE', { time: 0 });
+        notifyParent('ended');
+        return;
+      }
+
+      updatePlayheadPosition();
+      notifyParent('TIME_UPDATE', { time: currentPlayheadTime });
+      animFrame = requestAnimationFrame(runPlayheadLoop);
+    }
+
+    function play() {
+      if (tracks.length === 0 || isPlaying) return;
+      if (currentPlayheadTime >= maxDuration) currentPlayheadTime = 0;
+      if (isPlayheadOutsideView()) {
+        scrollPlayheadIntoView(true);
+      }
+      startAllSources(currentPlayheadTime);
+    }
+
+    function pause() {
+      if (!isPlaying) return;
+      stopAllSources();
+      if (isPlayheadOutsideView()) {
+        scrollPlayheadIntoView(true);
+      }
+      notifyParent('TIME_UPDATE', { time: currentPlayheadTime });
+    }
+
+    function stop() {
+      stopAllSources();
+      currentPlayheadTime = 0;
+      updatePlayheadPosition();
+      rightColumn.scrollLeft = 0;
+      notifyParent('TIME_UPDATE', { time: 0 });
+      notifyParent('PLAY_STATE', { isPlaying: false });
+    }
+
+    function handleZoom(deltaY, clientX) {
+      if (tracks.length === 0 || maxDuration <= 0) return;
+
+      const rightRect = rightColumn.getBoundingClientRect();
+      const viewWidth = rightColumn.clientWidth;
+      if (viewWidth <= 0) return;
+
+      const currentLaneWidth = rulerBar.offsetWidth;
+      if (currentLaneWidth <= 0) return;
+
+      let anchorViewportX;
+      let anchorTime;
+
+      // Check if clientX is hovering over the rightColumn's visible lane area
+      const isOverLane = (clientX !== undefined && clientX >= rightRect.left && clientX <= rightRect.right);
+
+      if (isOverLane) {
+        anchorViewportX = Math.max(0, Math.min(viewWidth, clientX - rightRect.left));
+        const mouseInLaneX = anchorViewportX + rightColumn.scrollLeft;
+        const timeRatio = Math.max(0, Math.min(1, mouseInLaneX / currentLaneWidth));
+        anchorTime = timeRatio * maxDuration;
+      } else {
+        // Cursor is outside lane (e.g. over left track headers, top bar, or not provided).
+        // Check if playhead is in visible viewport:
+        const playheadRatio = Math.max(0, Math.min(1, currentPlayheadTime / maxDuration));
+        const playheadLaneX = playheadRatio * currentLaneWidth;
+        const playheadViewportX = playheadLaneX - rightColumn.scrollLeft;
+
+        if (playheadViewportX >= 0 && playheadViewportX <= viewWidth) {
+          // Playhead is visible: anchor zoom around playhead!
+          anchorViewportX = playheadViewportX;
+          anchorTime = currentPlayheadTime;
+        } else {
+          // Playhead not visible: anchor around center of the visible viewport
+          anchorViewportX = viewWidth / 2;
+          const centerInLaneX = anchorViewportX + rightColumn.scrollLeft;
+          anchorTime = (centerInLaneX / currentLaneWidth) * maxDuration;
+        }
+      }
+
+      const zoomFactor = deltaY < 0 ? 1.2 : (1 / 1.2);
+      const newZoom = Math.max(1.0, Math.min(30.0, zoomLevel * zoomFactor));
+
+      if (Math.abs(newZoom - zoomLevel) < 0.001) return;
+
+      zoomLevel = newZoom;
+      applyZoom();
+
+      // Anchor zoom precisely around anchorTime at anchorViewportX
+      const newLaneWidth = rulerBar.offsetWidth;
+      const newAnchorInLaneX = (anchorTime / maxDuration) * newLaneWidth;
+      const newScrollLeft = newAnchorInLaneX - anchorViewportX;
+      rightColumn.scrollLeft = Math.max(0, Math.round(newScrollLeft));
+    }
+
+    function notifyParent(action, payload) {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'MUZIRO_TIMELINE', action, payload }, '*');
+      }
+    }
+
+    window.addEventListener('resize', () => {
+      applyZoom();
+    });
+
+    window.addEventListener('wheel', (e) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        handleZoom(e.deltaY, e.clientX);
+      }
+    }, { passive: false });
+
+    window.addEventListener('keydown', (e) => {
+      const modal = document.getElementById('confirm-modal-overlay');
+      const isModalOpen = modal && modal.classList.contains('is-active');
+      if (isModalOpen) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeConfirmModal();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (trackToDelete) {
+            const t = trackToDelete;
+            closeConfirmModal();
+            deleteTrack(t);
+          }
+        }
+        return;
+      }
+
+      const activeTag = document.activeElement ? document.activeElement.tagName : '';
+      if (activeTag === 'TEXTAREA' || (activeTag === 'INPUT' && document.activeElement.type !== 'range')) return;
+
+      // Undo: Ctrl+Z (without Shift)
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyZ' || e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'я')) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      // Redo: Ctrl+Shift+Z or Ctrl+Y
+      if (((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && (e.code === 'KeyZ' || e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'я')) ||
+          ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyY' || e.key.toLowerCase() === 'y' || e.key.toLowerCase() === 'н'))) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      // Save: Ctrl+S (and Russian Ctrl+Ы)
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyS' || e.key.toLowerCase() === 's' || e.key.toLowerCase() === 'ы')) {
+        e.preventDefault();
+        notifyParent('REQUEST_SAVE', { state: getProjectState() });
+        return;
+      }
+
+      // Select All: Ctrl+A or Ctrl+Ф
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyA' || e.key.toLowerCase() === 'a' || e.key.toLowerCase() === 'ф')) {
+        e.preventDefault();
+        selectAllClips();
+        return;
+      }
+
+      // Deselect: Escape
+      if (e.key === 'Escape') {
+        clearClipSelection();
+        return;
+      }
+
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        if (selectedClipId || selectedClipIds.size > 0) {
+          e.preventDefault();
+          deleteSelectedClip();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyB' || e.key.toLowerCase() === 'b' || e.key.toLowerCase() === 'и')) {
+        e.preventDefault();
+        splitSelectedTrack();
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.code === 'KeyQ' || e.key.toLowerCase() === 'q' || e.key.toLowerCase() === 'й')) {
+        e.preventDefault();
+        trimStartToPlayhead();
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.code === 'KeyW' || e.key.toLowerCase() === 'w' || e.key.toLowerCase() === 'ц')) {
+        e.preventDefault();
+        trimEndToPlayhead();
+      } else if (e.code === 'Space' || e.key === ' ' || e.keyCode === 32) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (document.activeElement && document.activeElement.blur) {
+          document.activeElement.blur();
+        }
+        if (isPlaying) {
+          pause();
+        } else {
+          play();
+        }
+      }
+    });
+
+    // Initialize Add Track Section UI
+    const addAudioTrackBtn = document.getElementById('add-audio-track-btn');
+    const addTrackDropdownBtn = document.getElementById('add-track-dropdown-btn');
+    const addTrackMenu = document.getElementById('add-track-menu');
+    const addTrackFileInput = document.getElementById('add-track-file-input');
+    const menuImportAudio = document.getElementById('menu-import-audio');
+    const menuEmptyTrack = document.getElementById('menu-empty-track');
+    const addTrackBtnGroup = document.getElementById('add-track-btn-group');
+    const addTrackSection = document.getElementById('add-track-section');
+
+    function toggleAddTrackMenu() {
+      if (addTrackMenu) addTrackMenu.classList.toggle('is-open');
+    }
+
+    function openAddTrackMenu() {
+      if (addTrackMenu) addTrackMenu.classList.add('is-open');
+    }
+
+    function closeAddTrackMenu() {
+      if (addTrackMenu) addTrackMenu.classList.remove('is-open');
+    }
+
+    if (addAudioTrackBtn) {
+      addAudioTrackBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAddTrackMenu();
+        if (addTrackFileInput) {
+          addTrackFileInput.value = '';
+          addTrackFileInput.click();
+        }
+      });
+
+      addAudioTrackBtn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openAddTrackMenu();
+      });
+    }
+
+    if (addTrackDropdownBtn) {
+      addTrackDropdownBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleAddTrackMenu();
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#add-track-section')) {
+        closeAddTrackMenu();
+      }
+    });
+
+    if (menuImportAudio) {
+      menuImportAudio.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAddTrackMenu();
+        if (addTrackFileInput) {
+          addTrackFileInput.value = '';
+          addTrackFileInput.click();
+        }
+      });
+    }
+
+    if (menuEmptyTrack) {
+      menuEmptyTrack.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAddTrackMenu();
+        createEmptyTrack();
+      });
+    }
+
+    if (addTrackFileInput) {
+      addTrackFileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          loadAudioFile(file);
+        }
+      });
+    }
+
+    if (addTrackSection) {
+      addTrackSection.addEventListener('dragover', (e) => {
+        if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+          e.preventDefault();
+          if (addTrackBtnGroup) addTrackBtnGroup.classList.add('is-dragover');
+        }
+      });
+      addTrackSection.addEventListener('dragleave', () => {
+        if (addTrackBtnGroup) addTrackBtnGroup.classList.remove('is-dragover');
+      });
+      addTrackSection.addEventListener('drop', (e) => {
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          e.preventDefault();
+          if (addTrackBtnGroup) addTrackBtnGroup.classList.remove('is-dragover');
+          loadAudioFile(e.dataTransfer.files[0]);
+        }
+      });
+    }
+
+    // Modal event listeners
+    const confirmModalOverlay = document.getElementById('confirm-modal-overlay');
+    const confirmModalCancel = document.getElementById('confirm-modal-cancel');
+    const confirmModalConfirm = document.getElementById('confirm-modal-confirm');
+
+    if (confirmModalCancel) {
+      confirmModalCancel.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeConfirmModal();
+      });
+    }
+
+    if (confirmModalConfirm) {
+      confirmModalConfirm.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (trackToDelete) {
+          const t = trackToDelete;
+          closeConfirmModal();
+          deleteTrack(t);
+        } else {
+          closeConfirmModal();
+        }
+      });
+    }
+
+    if (confirmModalOverlay) {
+      confirmModalOverlay.addEventListener('click', (e) => {
+        if (e.target === confirmModalOverlay) {
+          closeConfirmModal();
+        }
+      });
+    }
+
+    // Sync vertical wheel scrolling on left headers viewport
+    if (headersViewport) {
+      headersViewport.addEventListener('wheel', (e) => {
+        rightColumn.scrollTop += e.deltaY;
+        headersViewport.scrollTop = rightColumn.scrollTop;
+      }, { passive: true });
+    }
+
+    // Public API exposed for parent frame / direct scripting
+    window.MuziroTimeline = {
+      addTrack,
+      createEmptyTrack,
+      loadAudioFile,
+      confirmDeleteTrack,
+      deleteTrack,
+      undo,
+      redo,
+      canUndo: () => undoStack.length > 0,
+      canRedo: () => redoStack.length > 0,
+      play,
+      pause,
+      stop,
+      seekTo,
+      handleZoom,
+      splitSelectedTrack,
+      deleteSelectedClip,
+      selectAllClips,
+      clearClipSelection,
+      selectMultipleClips,
+      getSelectedClipIds: () => Array.from(selectedClipIds),
+      trimStartToPlayhead,
+      trimEndToPlayhead,
+      startTrimDrag,
+      isDraggingTrim: () => isDraggingTrim,
+      scrollPlayheadIntoView,
+      getTrackCount: () => tracks.length,
+      isPlaying: () => isPlaying
+    };
+
+    window.addEventListener('message', async (e) => {
+      const data = e.data;
+      if (!data || data.target !== 'MUZIRO_TIMELINE') return;
+
+      if (data.action === 'ADD_TRACK') {
+        await addTrack(data.buffer, data.name);
+        notifyParent('TRACK_ADDED', { count: tracks.length });
+      } else if (data.action === 'CREATE_EMPTY_TRACK') {
+        createEmptyTrack(data.name);
+      } else if (data.action === 'LOAD_AUDIO_FILE') {
+        loadAudioFile(data.file);
+      } else if (data.action === 'PLAY') {
+        play();
+      } else if (data.action === 'PAUSE') {
+        pause();
+      } else if (data.action === 'TOGGLE_PLAY') {
+        if (isPlaying) {
+          pause();
+        } else {
+          play();
+        }
+      } else if (data.action === 'STOP' || data.action === 'RESET') {
+        stop();
+      } else if (data.action === 'SCROLL_TO_PLAYHEAD') {
+        scrollPlayheadIntoView(true);
+      } else if (data.action === 'ZOOM_WHEEL') {
+        handleZoom(data.deltaY, data.clientX);
+      } else if (data.action === 'SPLIT_MIDDLE') {
+        splitSelectedTrack();
+      } else if (data.action === 'TRIM_START') {
+        trimStartToPlayhead();
+      } else if (data.action === 'TRIM_END') {
+        trimEndToPlayhead();
+      } else if (data.action === 'DELETE_SELECTED') {
+        deleteSelectedClip();
+      } else if (data.action === 'DELETE_TRACK') {
+        const targetTrack = tracks.find(t => t.id === data.trackId);
+        if (targetTrack) {
+          if (data.confirm === false) {
+            deleteTrack(targetTrack);
+          } else {
+            confirmDeleteTrack(targetTrack);
+          }
+        }
+      } else if (data.action === 'SELECT_ALL') {
+        selectAllClips();
+      } else if (data.action === 'DESELECT_ALL') {
+        clearClipSelection();
+      } else if (data.action === 'UNDO') {
+        undo();
+      } else if (data.action === 'REDO') {
+        redo();
+      } else if (data.action === 'MOUSE_MOVE' || data.action === 'SCRUB_MOVE') {
+        if (isMarqueeSelecting && data.clientX !== undefined) {
+          onMarqueeMove({ clientX: data.clientX, clientY: data.clientY });
+        }
+        if (isScrubbing && data.clientX !== undefined) {
+          onScrubMove({ clientX: data.clientX });
+        }
+        if (isDraggingClip || draggedClip) {
+          onClipDragMove({ clientX: data.clientX, clientY: data.clientY });
+        }
+        if (isDraggingTrack || draggedTrack) {
+          onTrackDragMove({ clientX: data.clientX, clientY: data.clientY });
+        }
+        if (isDraggingFade) {
+          onFadeDragMove({ clientX: data.clientX, clientY: data.clientY });
+        }
+        if (isDraggingFadeCurve) {
+          onFadeCurveDragMove({ clientX: data.clientX, clientY: data.clientY });
+        }
+        if (isDraggingTrim) {
+          onTrimDragMove({ clientX: data.clientX, clientY: data.clientY });
+        }
+      } else if (data.action === 'MOUSE_UP' || data.action === 'SCRUB_END') {
+        if (isMarqueeSelecting) {
+          onMarqueeEnd({ clientX: data.clientX, clientY: data.clientY });
+        }
+        if (isScrubbing) {
+          onScrubEnd();
+        }
+        if (isDraggingClip || draggedClip) {
+          onClipDragEnd({ clientX: data.clientX, clientY: data.clientY });
+        }
+        if (isDraggingTrack || draggedTrack) {
+          onTrackDragEnd({ clientX: data.clientX, clientY: data.clientY });
+        }
+        if (isDraggingFade) {
+          onFadeDragEnd({ clientX: data.clientX, clientY: data.clientY });
+        }
+        if (isDraggingFadeCurve) {
+          onFadeCurveDragEnd({ clientX: data.clientX, clientY: data.clientY });
+        }
+        if (isDraggingTrim) {
+          onTrimDragEnd({ clientX: data.clientX, clientY: data.clientY });
+        }
+      } else if (data.action === 'AUTOSAVE_PROJECT_TO_DB') {
+        try {
+          if (!data.projectId || tracks.length === 0) return;
+          const record = await serializeTimelineProject(data.projectId, data.projectName, data.isDraft !== undefined ? Boolean(data.isDraft) : true);
+          const totalClips = tracks.reduce((acc, t) => acc + (t.clips ? t.clips.length : 0), 0);
+          notifyParent('PROJECT_AUTOSAVED', {
+            id: record.id,
+            name: record.name,
+            isDraft: Boolean(record.isDraft),
+            tracksCount: tracks.length,
+            clipsCount: totalClips,
+            duration: formatTime(maxDuration)
+          });
+        } catch (err) {
+          console.error('Failed to autosave project to IndexedDB:', err);
+        }
+      } else if (data.action === 'SAVE_PROJECT_TO_DB') {
+        try {
+          const record = await serializeTimelineProject(data.projectId, data.projectName, false);
+          const totalClips = tracks.reduce((acc, t) => acc + (t.clips ? t.clips.length : 0), 0);
+          notifyParent('PROJECT_SAVED', {
+            id: record.id,
+            name: record.name,
+            isDraft: false,
+            tracksCount: tracks.length,
+            clipsCount: totalClips,
+            duration: formatTime(maxDuration)
+          });
+        } catch (err) {
+          console.error('Failed to save project to IndexedDB:', err);
+        }
+      } else if (data.action === 'LOAD_PROJECT_FROM_DB') {
+        try {
+          const record = await loadProjectRecord(data.projectId);
+          if (record) {
+            await deserializeAndRestoreProject(record);
+          }
+        } catch (err) {
+          console.error('Failed to load project from IndexedDB:', err);
+        }
+      } else if (data.action === 'RENAME_PROJECT') {
+        try {
+          if (data.projectId && data.newName) {
+            const record = await loadProjectRecord(data.projectId);
+            if (record) {
+              record.name = data.newName;
+              record.updatedAt = Date.now();
+              await saveProjectRecord(record);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to rename project in IndexedDB:', err);
+        }
+      } else if (data.action === 'GET_PROJECT_STATE') {
+        notifyParent('PROJECT_STATE', { state: getProjectState() });
+      } else if (data.action === 'EXPORT_PROJECT') {
+        const payload = data.payload || {};
+        const projectName = payload.projectName || 'Muziro_Mixdown';
+        const format = (payload.format || 'wav').toLowerCase();
+        const sampleRate = Number(payload.sampleRate) || 44100;
+        const channels = Number(payload.channels) === 1 ? 1 : 2;
+        const bitDepth = Number(payload.bitDepth) || 16;
+        const bitrate = Number(payload.bitrate) || 320;
+
+        try {
+          if (!tracks || tracks.length === 0 || !tracks.some(t => t.clips && t.clips.length > 0)) {
+            notifyParent('EXPORT_ERROR', { message: 'No audio tracks to export' });
+            return;
+          }
+
+          notifyParent('EXPORT_PROGRESS', { progress: 15, status: `Compiling audio timeline (${sampleRate / 1000} kHz)...` });
+
+          if (typeof MuziroExport === 'undefined') {
+            notifyParent('EXPORT_ERROR', { message: 'Export engine module not loaded.' });
+            return;
+          }
+
+          notifyParent('EXPORT_PROGRESS', { progress: 35, status: `Resampling & rendering DSP mixdown (${channels === 1 ? 'Mono' : 'Stereo'})...` });
+
+          MuziroExport.renderTimelineTracks(tracks, {
+            sampleRate: sampleRate,
+            channels: channels
+          })
+            .then(async renderedBuffer => {
+              const specDesc = (format === 'wav' || format === 'aiff' || format === 'flac')
+                ? `${bitDepth}-bit`
+                : `${bitrate} kbps`;
+              notifyParent('EXPORT_PROGRESS', {
+                progress: 75,
+                status: `Encoding ${format.toUpperCase()} (${specDesc})...`
+              });
+
+              await new Promise(r => setTimeout(r, 60));
+
+              const exportedBlob = await MuziroExport.exportAudioBuffer(renderedBuffer, {
+                format: format,
+                bitDepth: bitDepth,
+                bitrate: bitrate
+              });
+
+              notifyParent('EXPORT_PROGRESS', { progress: 95, status: 'Preparing file download...' });
+              await new Promise(r => setTimeout(r, 60));
+
+              const extMap = {
+                wav: '.wav',
+                mp3: '.mp3',
+                flac: '.flac',
+                ogg: '.ogg',
+                aiff: '.aiff',
+                aac: '.m4a',
+                webm: '.webm'
+              };
+              const ext = extMap[format] || `.${format}`;
+              const safeName = (projectName || 'Muziro_Mixdown').replace(/[/\\?%*:|"<>]/g, '_').trim() || 'Muziro_Mixdown';
+              const cleanBase = safeName.replace(/\.[a-zA-Z0-9]+$/, '');
+              const filename = `${cleanBase}${ext}`;
+
+              MuziroExport.downloadBlob(exportedBlob, filename);
+              notifyParent('EXPORT_SUCCESS', { filename });
+            })
+            .catch(err => {
+              console.error('Export rendering failed:', err);
+              notifyParent('EXPORT_ERROR', { message: err.message || 'Export rendering failed.' });
+            });
+        } catch (err) {
+          console.error('Export request error:', err);
+          notifyParent('EXPORT_ERROR', { message: err.message || 'Export failed.' });
+        }
+      }
+    });
+
+    /* ==========================================================================
+       IndexedDB Project & Audio Persistence Engine
+       ========================================================================== */
+    const MUZIRO_DB_NAME = 'MuziroDB';
+    const MUZIRO_DB_VERSION = 1;
+    const MUZIRO_STORE_NAME = 'projects';
+
+    function openMuziroDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(MUZIRO_DB_NAME, MUZIRO_DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(MUZIRO_STORE_NAME)) {
+            db.createObjectStore(MUZIRO_STORE_NAME, { keyPath: 'id' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function saveProjectRecord(record) {
+      const db = await openMuziroDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(MUZIRO_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(MUZIRO_STORE_NAME);
+        const req = store.put(record);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('IndexedDB transaction aborted'));
+      });
+    }
+
+    async function loadProjectRecord(projectId) {
+      const db = await openMuziroDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(MUZIRO_STORE_NAME, 'readonly');
+        const store = tx.objectStore(MUZIRO_STORE_NAME);
+        const req = store.get(projectId);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('IndexedDB transaction aborted'));
+      });
+    }
+
+    let _audioBufferIdCounter = 0;
+    function getOrAssignBufferId(buf) {
+      if (!buf) return null;
+      if (!buf._muziroId) {
+        buf._muziroId = 'buf_' + (++_audioBufferIdCounter) + '_' + Date.now();
+      }
+      return buf._muziroId;
+    }
+
+    function extractAudioBufferData(audioBuf) {
+      if (!audioBuf) return null;
+      const channels = [];
+      for (let ch = 0; ch < audioBuf.numberOfChannels; ch++) {
+        channels.push(new Float32Array(audioBuf.getChannelData(ch)));
+      }
+      return {
+        numberOfChannels: audioBuf.numberOfChannels,
+        sampleRate: audioBuf.sampleRate,
+        length: audioBuf.length,
+        channels: channels
+      };
+    }
+
+    function restoreAudioBufferFromData(ctx, data) {
+      if (!data || !data.channels || data.channels.length === 0) return null;
+      try {
+        const buf = ctx.createBuffer(data.numberOfChannels, data.length, data.sampleRate);
+        for (let ch = 0; ch < data.numberOfChannels; ch++) {
+          if (data.channels[ch]) {
+            buf.getChannelData(ch).set(data.channels[ch]);
+          }
+        }
+        return buf;
+      } catch (err) {
+        console.error('Failed to restore AudioBuffer:', err);
+        return null;
+      }
+    }
+
+    async function serializeTimelineProject(projectId, projectName, isDraft = false) {
+      const buffersStore = {};
+
+      tracks.forEach(t => {
+        (t.clips || []).forEach(c => {
+          const buf = c.buffer;
+          const sBuf = c.sourceBuffer || c.buffer;
+
+          const bufId = getOrAssignBufferId(buf);
+          const sBufId = getOrAssignBufferId(sBuf);
+
+          if (bufId && !buffersStore[bufId]) {
+            buffersStore[bufId] = extractAudioBufferData(buf);
+          }
+          if (sBufId && !buffersStore[sBufId]) {
+            buffersStore[sBufId] = extractAudioBufferData(sBuf);
+          }
+        });
+      });
+
+      const serializedTracks = tracks.map(t => ({
+        id: t.id,
+        name: t.name,
+        volume: t.volume !== undefined ? t.volume : 100,
+        clips: (t.clips || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          startTime: c.startTime,
+          duration: c.duration,
+          sourceOffset: c.sourceOffset || 0,
+          fadeIn: c.fadeIn || 0,
+          fadeOut: c.fadeOut || 0,
+          fadeInCurve: c.fadeInCurve || 0,
+          fadeOutCurve: c.fadeOutCurve || 0,
+          bufferId: getOrAssignBufferId(c.buffer),
+          sourceBufferId: getOrAssignBufferId(c.sourceBuffer || c.buffer)
+        }))
+      }));
+
+      const record = {
+        id: projectId,
+        name: projectName || 'Untitled Project',
+        isDraft: Boolean(isDraft),
+        updatedAt: Date.now(),
+        maxDuration: maxDuration,
+        freeTimelineDuration: freeTimelineDuration,
+        tracks: serializedTracks,
+        buffers: buffersStore
+      };
+
+      await saveProjectRecord(record);
+      return record;
+    }
+
+    async function deserializeAndRestoreProject(record) {
+      if (!record || !Array.isArray(record.tracks)) return;
+
+      const wasPlaying = isPlaying;
+      if (isPlaying) {
+        stopAllSources();
+      }
+
+      // Recreate AudioBuffers
+      const bufferCache = {};
+      if (record.buffers) {
+        for (const [bId, bData] of Object.entries(record.buffers)) {
+          const recreatedBuf = restoreAudioBufferFromData(audioContext, bData);
+          if (recreatedBuf) {
+            recreatedBuf._muziroId = bId;
+            bufferCache[bId] = recreatedBuf;
+          }
+        }
+      }
+
+      // Disconnect existing tracks
+      tracks.forEach(t => {
+        if (t.gainNode) {
+          try { t.gainNode.disconnect(); } catch (e) {}
+        }
+      });
+      headersList.innerHTML = '';
+      wavesList.innerHTML = '';
+      tracks.length = 0;
+
+      // Reconstruct tracks
+      record.tracks.forEach(sTrack => {
+        const gainNode = audioContext.createGain();
+        const vol = sTrack.volume !== undefined ? sTrack.volume : 100;
+        gainNode.gain.value = vol / 100;
+        gainNode.connect(audioContext.destination);
+
+        const newTrack = {
+          id: sTrack.id,
+          name: sTrack.name,
+          duration: 0,
+          gainNode: gainNode,
+          volume: vol,
+          clips: (sTrack.clips || []).map(sClip => {
+            const buf = sClip.bufferId ? bufferCache[sClip.bufferId] : null;
+            const sBuf = sClip.sourceBufferId ? bufferCache[sClip.sourceBufferId] : buf;
+            return {
+              id: sClip.id,
+              name: sClip.name,
+              startTime: sClip.startTime,
+              duration: sClip.duration,
+              buffer: buf,
+              sourceBuffer: sBuf || buf,
+              sourceOffset: sClip.sourceOffset || 0,
+              fadeIn: sClip.fadeIn || 0,
+              fadeOut: sClip.fadeOut || 0,
+              fadeInCurve: sClip.fadeInCurve || 0,
+              fadeOutCurve: sClip.fadeOutCurve || 0
+            };
+          })
+        };
+
+        let tDur = 0;
+        newTrack.clips.forEach(c => {
+          tDur = Math.max(tDur, (c.startTime || 0) + (c.duration || 0));
+        });
+        newTrack.duration = tDur;
+
+        tracks.push(newTrack);
+        renderTrackRow(newTrack);
+      });
+
+      if (tracks.length === 0) {
+        emptyState.style.display = 'flex';
+        globalPlayhead.style.display = 'none';
+        maxDuration = 0;
+        freeTimelineDuration = 0;
+        currentPlayheadTime = 0;
+        updatePlayheadPosition();
+        notifyParent('ALL_TRACKS_REMOVED');
+      } else {
+        emptyState.style.display = 'none';
+        globalPlayhead.style.display = 'block';
+        freeTimelineDuration = record.freeTimelineDuration || 0;
+        recalcMaxDuration();
+        applyZoom();
+
+        // Reset undo/redo history for loaded project
+        undoStack.length = 0;
+        redoStack.length = 0;
+        notifyParent('HISTORY_STATE', { canUndo: false, canRedo: false });
+
+        // Multi-frame layout recalibration ensuring waveforms and clip widths render with absolute precision
+        requestAnimationFrame(() => {
+          recalcMaxDuration();
+          applyZoom();
+          if (tracks[0] && tracks[0].clips && tracks[0].clips[0]) {
+            selectClip(tracks[0].clips[0].id);
+          }
+        });
+        setTimeout(() => {
+          recalcMaxDuration();
+          applyZoom();
+        }, 80);
+
+        notifyParent('TRACK_ADDED', { count: tracks.length });
+        notifyParent('PROJECT_LOADED', {
+          id: record.id,
+          name: record.name,
+          tracksCount: tracks.length,
+          duration: maxDuration
+        });
+      }
+    }
+
+    // Auto-restore project if opened with ?project=query_param
+    function initAutoLoadProject() {
+      const autoLoadProjectId = new URLSearchParams(window.location.search).get('project');
+      if (autoLoadProjectId) {
+        loadProjectRecord(autoLoadProjectId).then(record => {
+          if (record) {
+            deserializeAndRestoreProject(record);
+          }
+          notifyParent('TIMELINE_READY', { tracksCount: tracks.length });
+        }).catch(err => {
+          console.error('Auto-load project error:', err);
+          notifyParent('TIMELINE_READY', { tracksCount: tracks.length });
+        });
+      } else {
+        notifyParent('TIMELINE_READY', { tracksCount: tracks.length });
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initAutoLoadProject);
+    } else {
+      initAutoLoadProject();
+    }
+
+    function getProjectState() {
+      return {
+        tracksCount: tracks.length,
+        clipsCount: tracks.reduce((acc, t) => acc + (t.clips ? t.clips.length : 0), 0),
+        maxDuration: maxDuration,
+        freeTimelineDuration: freeTimelineDuration,
+        tracks: tracks.map(t => ({
+          id: t.id,
+          name: t.name,
+          volume: t.volume !== undefined ? t.volume : 100,
+          clips: (t.clips || []).map(c => ({
+            id: c.id,
+            name: c.name,
+            startTime: c.startTime,
+            duration: c.duration,
+            sourceOffset: c.sourceOffset || 0,
+            fadeIn: c.fadeIn || 0,
+            fadeOut: c.fadeOut || 0
+          }))
+        }))
+      };
+    }
+  </script>
+</body>
+</html>

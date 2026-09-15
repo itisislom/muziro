@@ -1,0 +1,2007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Muziro - Digital Audio Workstation</title>
+  <link rel="stylesheet" href="functions/export/export.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    :root {
+      --canvas-padding: clamp(10px, 1.2vw, 20px);
+      --btn-padding-y: clamp(8px, 0.8vw, 12px);
+      --btn-padding-x: clamp(14px, 1.4vw, 22px);
+      --btn-font-size: clamp(11px, 0.9vw, 14px);
+    }
+    .canvas-16-9 {
+      position: relative;
+      width: 100vw;
+      height: 56.25vw; /* 16:9 aspect ratio */
+      max-height: 100vh;
+      max-width: 177.78vh; /* 16:9 aspect ratio */
+      aspect-ratio: 16 / 9;
+      background-color: #ffffff;
+      padding: var(--canvas-padding);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(12px, 1.2vw, 20px);
+    }
+    .top-bar {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+    .transport-timecode {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #000000;
+      color: #ffffff;
+      border: 1px solid #282828;
+      border-radius: clamp(6px, 0.5vw, 10px);
+      padding: clamp(6px, 0.5vw, 9px) clamp(14px, 1.2vw, 20px);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      user-select: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+    .transport-timecode:hover {
+      background-color: #1a1a1a;
+      border-color: #444444;
+    }
+    .transport-timecode:active {
+      transform: translate(-50%, -50%) scale(0.98);
+    }
+    .timecode-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #888888;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .timecode-value {
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+      font-size: clamp(13px, 1vw, 16px);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.8px;
+      color: #ffffff;
+    }
+    .controls-group {
+      display: flex;
+      align-items: center;
+      gap: clamp(8px, 0.8vw, 12px);
+    }
+    .btn {
+      background-color: #000000;
+      color: #ffffff;
+      border: none;
+      border-radius: clamp(6px, 0.5vw, 10px);
+      padding: var(--btn-padding-y) var(--btn-padding-x);
+      font-size: var(--btn-font-size);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      transition: background-color 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+      user-select: none;
+    }
+    .btn:hover:not(:disabled) {
+      background-color: #222222;
+    }
+    .btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+    .btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .btn-transport {
+      position: relative;
+      background-color: #000000;
+      color: #ffffff;
+      border: 1px solid #2a2a2a;
+      gap: 8px;
+      padding-left: clamp(12px, 1vw, 16px);
+      padding-right: clamp(14px, 1.2vw, 18px);
+      transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-transport:hover:not(:disabled) {
+      background-color: #1a1a1a;
+      border-color: #444444;
+    }
+    /* Clean monochrome active playing state without orange glow */
+    .btn-transport.is-playing {
+      background-color: #000000;
+      color: #ffffff;
+      border-color: #000000;
+      box-shadow: none;
+    }
+    .btn-transport.is-playing:hover:not(:disabled) {
+      background-color: #222222;
+      border-color: #222222;
+      box-shadow: none;
+    }
+    .btn-square {
+      width: clamp(34px, 2.5vw, 42px);
+      height: clamp(34px, 2.5vw, 42px);
+      aspect-ratio: 1 / 1;
+      padding: 0;
+      background-color: #000000;
+      color: #ffffff;
+      border: 1px solid #2a2a2a;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .btn-square:hover:not(:disabled):not(.is-at-start) {
+      background-color: #1a1a1a;
+      border-color: #444444;
+    }
+    .btn-square:active:not(:disabled):not(.is-at-start) {
+      transform: scale(0.96);
+    }
+    .stop-square-icon {
+      width: 10px;
+      height: 10px;
+      background-color: #ffffff;
+      border-radius: 1px;
+      transition: background-color 0.2s ease;
+    }
+    /* Dimmed gray state when playhead is at the start */
+    .btn-square.is-at-start {
+      border-color: #1f1f1f;
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    /* Black Left Arrow Return Button */
+    .btn-back-menu {
+      width: clamp(34px, 2.5vw, 42px);
+      height: clamp(34px, 2.5vw, 42px);
+      aspect-ratio: 1 / 1;
+      padding: 0;
+      background-color: #000000;
+      color: #ffffff;
+      border: 1px solid #000000;
+      border-radius: 0px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+    .btn-back-menu:hover {
+      background-color: #222222;
+      transform: translateY(-1px);
+    }
+    .btn-back-menu:active {
+      transform: scale(0.96);
+    }
+    .btn-square.is-at-start .stop-square-icon {
+      background-color: #666666;
+    }
+    .transport-icon-wrapper {
+      position: relative;
+      width: 12px;
+      height: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0px;
+      transition: gap 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-transport.is-playing .transport-icon-wrapper {
+      gap: 3px;
+    }
+    .icon-segment {
+      width: 6px;
+      height: 13px;
+      background-color: currentColor;
+      transition: clip-path 0.22s cubic-bezier(0.4, 0, 0.2, 1), width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .segment-left {
+      clip-path: polygon(0 0, 100% 25%, 100% 75%, 0 100%);
+    }
+    .segment-right {
+      clip-path: polygon(0 25%, 100% 50%, 100% 50%, 0 75%);
+    }
+    .btn-transport.is-playing .segment-left {
+      width: 4px;
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    }
+    .btn-transport.is-playing .segment-right {
+      width: 4px;
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    }
+    .upload-input {
+      display: none;
+    }
+    .timeline-frame {
+      width: 100%;
+      flex: 1;
+      border: none;
+      border-radius: clamp(6px, 0.6vw, 10px);
+      display: block;
+      background-color: transparent;
+    }
+    /* Full-Screen Blur Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  backdrop-filter 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  visibility 0.3s ease;
+    }
+    .loading-overlay.is-active {
+      opacity: 1;
+      pointer-events: auto;
+      visibility: visible;
+    }
+    .loading-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 28px 42px;
+      background: #000000;
+      border: 2px solid #282828;
+      border-radius: 0px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75);
+      transform: scale(0.96);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .loading-overlay.is-active .loading-card {
+      transform: scale(1);
+    }
+    .loading-label {
+      font-size: 13px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      text-align: center;
+      font-family: 'Montserrat', -apple-system, sans-serif;
+    }
+
+    /* Workstation Initial Boot Loader Overlay */
+    .muz-workstation-loader {
+      position: fixed;
+      inset: 0;
+      background: rgba(14, 14, 14, 0.82);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.32s cubic-bezier(0.16, 1, 0.3, 1), transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .muz-workstation-loader.is-active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .muz-workstation-loader .muz-loader-card {
+      background: #000000;
+      border: 2px solid #282828;
+      border-radius: 0px;
+      padding: 28px 42px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+      transform: scale(0.96);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .muz-workstation-loader.is-active .muz-loader-card {
+      transform: scale(1);
+    }
+    .muz-loader-wave {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      height: 30px;
+    }
+    .muz-loader-bar {
+      width: 4px;
+      background: #ffffff;
+      border-radius: 0px;
+      animation: muzWavePulse 0.85s ease-in-out infinite alternate;
+    }
+    .muz-loader-bar:nth-child(1) { height: 8px; animation-delay: 0.0s; }
+    .muz-loader-bar:nth-child(2) { height: 16px; animation-delay: 0.18s; }
+    .muz-loader-bar:nth-child(3) { height: 26px; animation-delay: 0.36s; }
+    .muz-loader-bar:nth-child(4) { height: 18px; animation-delay: 0.54s; }
+    .muz-loader-bar:nth-child(5) { height: 10px; animation-delay: 0.72s; }
+
+    @keyframes muzWavePulse {
+      0% { height: 6px; opacity: 0.35; transform: scaleY(0.4); }
+      100% { height: 28px; opacity: 1; transform: scaleY(1); }
+    }
+    .muz-loader-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #ffffff;
+      font-family: 'Montserrat', -apple-system, sans-serif;
+    }
+    .muz-loader-sub {
+      font-size: 11px;
+      font-weight: 600;
+      color: #888888;
+      letter-spacing: 0.5px;
+      font-family: 'Montserrat', -apple-system, sans-serif;
+    }
+
+    /* Top Right Group & Project Name */
+    .top-right-group {
+      display: flex;
+      align-items: center;
+      gap: clamp(6px, 0.6vw, 10px);
+    }
+    .project-name-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .project-name-badge {
+      font-size: clamp(11px, 0.85vw, 13px);
+      font-weight: 700;
+      background: #f4f4f5;
+      color: #09090b;
+      border: 1px solid #282828;
+      border-radius: clamp(6px, 0.5vw, 10px);
+      padding: clamp(6px, 0.5vw, 8px) clamp(10px, 0.9vw, 14px);
+      max-width: 190px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      user-select: none;
+      cursor: pointer;
+      font-family: inherit;
+      outline: none;
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .project-name-badge:hover {
+      background-color: #e4e4e7;
+      border-color: #000000;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    .project-name-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 140px;
+    }
+    .project-name-edit-icon {
+      color: #71717a;
+      flex-shrink: 0;
+      transition: color 0.15s ease, transform 0.15s ease;
+    }
+    .project-name-badge:hover .project-name-edit-icon {
+      color: #000000;
+      transform: scale(1.15);
+    }
+    .project-name-inline-input {
+      font-size: clamp(11px, 0.85vw, 13px);
+      font-weight: 700;
+      background: #ffffff;
+      color: #000000;
+      border: 2px solid #000000;
+      border-radius: clamp(6px, 0.5vw, 10px);
+      padding: clamp(5px, 0.45vw, 7px) clamp(10px, 0.9vw, 14px);
+      max-width: 200px;
+      font-family: inherit;
+      outline: none;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+    }
+    .btn-save {
+      background-color: #000000;
+      color: #ffffff;
+      border: 1px solid #2a2a2a;
+      gap: 6px;
+    }
+    .btn-home {
+      background-color: #f4f4f5;
+      color: #09090b;
+      border: 1px solid #282828;
+      text-decoration: none;
+    }
+    .btn-home:hover {
+      background-color: #e4e4e7;
+    }
+
+    /* Save Modal Overlay with Frosted Glass Blur */
+    .save-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .save-modal-overlay.is-active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .save-modal-card {
+      background: #ffffff;
+      border: 2px solid #000000;
+      border-radius: 0px;
+      box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.4);
+      width: 90%;
+      max-width: 460px;
+      padding: 32px 28px 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      transform: scale(0.92) translateY(10px);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .save-modal-overlay.is-active .save-modal-card {
+      transform: scale(1) translateY(0px);
+    }
+    .save-modal-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .save-modal-icon {
+      width: 44px;
+      height: 44px;
+      background-color: #000000;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border-radius: 0px;
+      border: 2px solid #000000;
+    }
+    .save-modal-titles {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .save-modal-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #000000;
+      line-height: 1.25;
+      font-family: 'Montserrat', -apple-system, sans-serif;
+    }
+    .save-modal-subtitle {
+      font-size: 13px;
+      font-weight: 500;
+      color: #666666;
+      line-height: 1.35;
+    }
+    .save-modal-form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .save-modal-input {
+      width: 100%;
+      background: #fafafa;
+      border: 2px solid #000000;
+      border-radius: 0px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      color: #000000;
+      outline: none;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .save-modal-input:focus {
+      background: #ffffff;
+      border-color: #000000;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
+    }
+    .save-modal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .modal-btn {
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 0px;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      text-transform: none;
+    }
+    .modal-btn-cancel {
+      background: #ffffff;
+      color: #000000;
+      border: 2px solid #000000;
+    }
+    .modal-btn-cancel:hover {
+      background: #f4f4f5;
+    }
+    .modal-btn-save {
+      background: #000000;
+      color: #ffffff;
+      border: 2px solid #000000;
+    }
+    .modal-btn-save:hover {
+      background: #222222;
+      transform: translateY(-1px);
+    }
+    .modal-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Exit Confirmation Modal */
+    .confirm-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .confirm-modal-overlay.is-active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .confirm-modal-card {
+      background: #ffffff;
+      border: 2px solid #000000;
+      border-radius: 0px;
+      box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.4);
+      width: 90%;
+      max-width: 460px;
+      padding: 32px 28px 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      transform: scale(0.92) translateY(10px);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .confirm-modal-overlay.is-active .confirm-modal-card {
+      transform: scale(1) translateY(0px);
+    }
+    .confirm-modal-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .confirm-modal-icon {
+      width: 44px;
+      height: 44px;
+      background-color: #000000;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border-radius: 0px;
+      border: 2px solid #000000;
+    }
+    .confirm-modal-titles {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .confirm-modal-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #000000;
+      line-height: 1.25;
+      font-family: 'Montserrat', -apple-system, sans-serif;
+    }
+    .confirm-modal-subtitle {
+      font-size: 13px;
+      font-weight: 500;
+      color: #666666;
+      line-height: 1.4;
+    }
+    .confirm-modal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .modal-btn-confirm {
+      background: #000000;
+      color: #ffffff;
+      border: 2px solid #000000;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-btn-confirm:hover {
+      background: #222222;
+      transform: translateY(-1px);
+    }
+
+    /* Bottom Save Toast */
+    .save-toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(35px);
+      background: #000000;
+      color: #ffffff;
+      border: 2px solid #000000;
+      border-radius: 0px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: 'Montserrat', -apple-system, sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 999999;
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease;
+    }
+    .save-toast.is-active {
+      transform: translateX(-50%) translateY(0px);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="canvas-16-9">
+    <div class="top-bar">
+      <div class="controls-group">
+        <button type="button" class="btn-back-menu" id="back-to-menu-btn" title="Return to Main Menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
+        <input type="file" id="audio-upload" class="upload-input" accept="audio/*">
+        <button class="btn" id="upload-btn">Upload Track</button>
+        <button class="btn btn-transport" id="play-pause-btn" disabled title="Play / Pause">
+          <div class="transport-icon-wrapper">
+            <div class="icon-segment segment-left"></div>
+            <div class="icon-segment segment-right"></div>
+          </div>
+          <span class="transport-label" id="transport-label">Play</span>
+        </button>
+        <button class="btn btn-square is-at-start" id="stop-reset-btn" disabled title="Stop & Reset to Start">
+          <div class="stop-square-icon"></div>
+        </button>
+      </div>
+
+      <!-- Center Stopwatch / Timecode Display -->
+      <div class="transport-timecode" id="transport-timecode" title="Current Timeline Time">
+        <span class="timecode-label">Time</span>
+        <span class="timecode-value" id="timecode-value">00:00.000</span>
+      </div>
+
+      <!-- Right Controls: Project Name, Save & Exit -->
+      <div class="top-right-group">
+        <div class="project-name-wrapper" id="project-name-wrapper">
+          <button type="button" class="project-name-badge" id="project-name-badge" title="Click to rename project">
+            <span class="project-name-text" id="project-name-text">Untitled Project</span>
+            <svg class="project-name-edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="square">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+          </button>
+          <input 
+            type="text" 
+            class="project-name-inline-input" 
+            id="project-name-inline-input" 
+            maxlength="45" 
+            autocomplete="off" 
+            spellcheck="false"
+            style="display: none;"
+          >
+        </div>
+        <button class="btn btn-save" id="save-btn" title="Save Project (Ctrl+S)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          <span>Save</span>
+        </button>
+        <button type="button" class="btn btn-home" id="exit-btn" title="Return to Main Menu">
+          <span>Exit</span>
+        </button>
+        <button type="button" class="btn btn-export" id="export-btn" title="Export Audio Mixdown (WAV)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Export</span>
+        </button>
+      </div>
+    </div>
+
+    <iframe id="timeline-frame" class="timeline-frame" src="timeline.html"></iframe>
+
+    <!-- Initial Workstation Boot Loader Overlay -->
+    <div class="muz-workstation-loader is-active" id="workstation-boot-loader" aria-live="polite">
+      <div class="muz-loader-card">
+        <div class="muz-loader-wave">
+          <div class="muz-loader-bar"></div>
+          <div class="muz-loader-bar"></div>
+          <div class="muz-loader-bar"></div>
+          <div class="muz-loader-bar"></div>
+          <div class="muz-loader-bar"></div>
+        </div>
+        <div class="muz-loader-title">MUZIRO WORKSTATION</div>
+        <div class="muz-loader-sub">Mounting timeline & audio engine...</div>
+      </div>
+    </div>
+
+    <!-- Full-Screen Blur Loading Overlay (For track imports) -->
+    <div class="loading-overlay" id="loading-overlay" aria-live="polite" aria-hidden="true">
+      <div class="loading-card">
+        <div class="muz-loader-wave">
+          <div class="muz-loader-bar"></div>
+          <div class="muz-loader-bar"></div>
+          <div class="muz-loader-bar"></div>
+          <div class="muz-loader-bar"></div>
+          <div class="muz-loader-bar"></div>
+        </div>
+        <div class="loading-label" id="loading-label">Loading track...</div>
+      </div>
+    </div>
+
+    <!-- Save Project Modal Dialog with Frosted Blur -->
+    <div class="save-modal-overlay" id="save-modal-overlay" aria-hidden="true">
+      <div class="save-modal-card" role="dialog" aria-modal="true" aria-labelledby="save-modal-title">
+        <div class="save-modal-header">
+          <div class="save-modal-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+          </div>
+          <div class="save-modal-titles">
+            <h2 id="save-modal-title" class="save-modal-title">Name your project to save it</h2>
+            <p class="save-modal-subtitle">Enter a name to save and manage your project</p>
+          </div>
+        </div>
+
+        <form id="save-project-form" class="save-modal-form" onsubmit="return false;">
+          <input 
+            type="text" 
+            id="save-project-input" 
+            class="save-modal-input" 
+            placeholder="e.g. My Audio Mix" 
+            maxlength="45"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <div class="save-modal-actions">
+            <button type="button" id="save-cancel-btn" class="modal-btn modal-btn-cancel">Cancel</button>
+            <button type="submit" id="save-confirm-btn" class="modal-btn modal-btn-save">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Return to Menu Confirmation Modal with Frosted Blur -->
+    <div class="confirm-modal-overlay" id="exit-modal-overlay" aria-hidden="true">
+      <div class="confirm-modal-card" role="dialog" aria-modal="true" aria-labelledby="exit-modal-title">
+        <div class="confirm-modal-header">
+          <div class="confirm-modal-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </div>
+          <div class="confirm-modal-titles">
+            <h2 id="exit-modal-title" class="confirm-modal-title">Return to Menu?</h2>
+            <p class="confirm-modal-subtitle">All your project tracks and clips are autosaved. Are you sure you want to return to the dashboard?</p>
+          </div>
+        </div>
+        <div class="confirm-modal-actions">
+          <button type="button" id="exit-modal-cancel" class="modal-btn modal-btn-cancel">Cancel</button>
+          <button type="button" id="exit-modal-confirm" class="modal-btn modal-btn-confirm">
+            <span>Exit to Menu</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export Audio Modal Dialog with Frosted Blur -->
+    <div class="export-modal-overlay" id="export-modal-overlay" aria-hidden="true">
+      <div class="export-modal-card" role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
+        <div class="export-modal-header">
+          <div class="export-modal-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="square">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </div>
+          <div class="export-modal-titles">
+            <h2 id="export-modal-title" class="export-modal-title">Export Audio Mixdown</h2>
+            <p class="export-modal-subtitle">Render multitrack project with real DSP resampling & format encoding</p>
+          </div>
+        </div>
+
+        <!-- 1. File Name -->
+        <div class="export-section">
+          <label class="export-label" for="export-filename-input">File Name</label>
+          <input type="text" class="export-input" id="export-filename-input" maxlength="60" spellcheck="false" autocomplete="off">
+        </div>
+
+        <!-- 2. Format Selector (WAV, MP3, FLAC, OGG, AIFF, AAC, WEBM) -->
+        <div class="export-section">
+          <label class="export-label">Audio Format</label>
+          <div class="export-formats-grid" id="export-formats-grid">
+            <button type="button" class="export-format-chip is-active" data-format="wav">WAV</button>
+            <button type="button" class="export-format-chip" data-format="mp3">MP3</button>
+            <button type="button" class="export-format-chip" data-format="flac">FLAC</button>
+            <button type="button" class="export-format-chip" data-format="ogg">OGG</button>
+            <button type="button" class="export-format-chip" data-format="aiff">AIFF</button>
+            <button type="button" class="export-format-chip" data-format="aac">AAC</button>
+            <button type="button" class="export-format-chip" data-format="webm">WEBM</button>
+          </div>
+        </div>
+
+        <!-- 3. Sample Rate & Channels Row -->
+        <div class="export-row-2col">
+          <div class="export-section">
+            <label class="export-label" for="export-sample-rate-select">Sample Rate</label>
+            <select class="export-select" id="export-sample-rate-select">
+              <option value="44100" selected>44.1 kHz (CD Standard)</option>
+              <option value="48000">48.0 kHz (Studio Master / Video)</option>
+              <option value="88200">88.2 kHz (High-Res 2x CD)</option>
+              <option value="96000">96.0 kHz (Pro Studio Master)</option>
+              <option value="32000">32.0 kHz (Broadcast / Radio)</option>
+            </select>
+          </div>
+          <div class="export-section">
+            <label class="export-label">Channels</label>
+            <div class="export-toggle-group">
+              <button type="button" class="export-toggle-btn is-active" id="export-chan-stereo" data-channels="2">Stereo</button>
+              <button type="button" class="export-toggle-btn" id="export-chan-mono" data-channels="1">Mono</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Bit Depth / Bitrate Row -->
+        <div class="export-row-2col">
+          <div class="export-section" id="export-bitdepth-group">
+            <label class="export-label" for="export-bitdepth-select">Bit Depth</label>
+            <select class="export-select" id="export-bitdepth-select">
+              <option value="16" selected>16-bit PCM (Standard CD)</option>
+              <option value="24">24-bit PCM (Studio Master)</option>
+              <option value="32">32-bit Float (Ultra Dynamic)</option>
+            </select>
+          </div>
+          <div class="export-section" id="export-bitrate-group" style="display: none;">
+            <label class="export-label" for="export-bitrate-select">Bitrate</label>
+            <select class="export-select" id="export-bitrate-select">
+              <option value="320" selected>320 kbps (Maximum Quality)</option>
+              <option value="256">256 kbps (High Quality)</option>
+              <option value="192">192 kbps (Standard Quality)</option>
+              <option value="128">128 kbps (Compact Web)</option>
+            </select>
+          </div>
+          <div class="export-section">
+            <label class="export-label">Configuration Spec</label>
+            <div class="export-spec-box" id="export-spec-box">
+              <div class="export-spec-format">
+                <span class="export-spec-badge" id="export-spec-badge">WAV</span>
+                <span id="export-spec-depth">16-bit</span>
+              </div>
+              <div class="export-spec-meta" id="export-spec-meta">Stereo • 44.1 kHz</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress Bar & Status -->
+        <div class="export-progress-container" id="export-progress-container">
+          <div class="export-progress-bar-track">
+            <div class="export-progress-bar-fill" id="export-progress-fill"></div>
+          </div>
+          <div class="export-progress-status">
+            <span id="export-progress-label">Rendering multitrack mixdown...</span>
+            <span id="export-progress-percent">0%</span>
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="export-modal-actions" id="export-modal-actions">
+          <button type="button" class="export-btn-cancel" id="export-cancel-btn">Cancel</button>
+          <button type="button" class="export-btn-submit" id="export-start-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Render & Download</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Save Toast Notification with dynamic Check/Error icon -->
+    <div class="save-toast" id="save-toast" aria-live="polite">
+      <svg class="toast-icon-success" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="square">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      <svg class="toast-icon-error" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="square" style="display: none;">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+      <span>Saved successfully</span>
+    </div>
+  </div>
+
+  <!-- Muziro Audio Export Modules -->
+  <script src="functions/export/lame.min.js"></script>
+  <script src="functions/export/export.js"></script>
+
+  <script>
+    const fileInput = document.getElementById('audio-upload');
+    const uploadBtn = document.getElementById('upload-btn');
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const stopResetBtn = document.getElementById('stop-reset-btn');
+    const transportLabel = document.getElementById('transport-label');
+    const timecodeValue = document.getElementById('timecode-value');
+    const timelineFrame = document.getElementById('timeline-frame');
+
+    let isPlaying = false;
+    let hasTracks = false;
+    let currentTime = 0;
+
+    let currentProjectId = null;
+    let currentProjectName = null;
+    let isProjectDraft = false;
+    let cachedTimelineState = null;
+
+    function updateProjectNameDisplay(name) {
+      currentProjectName = (name && name.trim()) ? name.trim() : (currentProjectName || 'Untitled Project');
+      const textEl = document.getElementById('project-name-text');
+      if (textEl) {
+        textEl.textContent = currentProjectName;
+      }
+      const badge = document.getElementById('project-name-badge');
+      if (badge) {
+        badge.title = `Click to rename project (current: ${currentProjectName})`;
+      }
+      const inlineInput = document.getElementById('project-name-inline-input');
+      if (inlineInput) {
+        inlineInput.value = currentProjectName;
+      }
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialProjectId = urlParams.get('project');
+
+    if (initialProjectId) {
+      try {
+        const projects = JSON.parse(localStorage.getItem('muziro_projects') || '[]');
+        const p = projects.find(item => item.id === initialProjectId);
+        if (p) {
+          currentProjectId = p.id;
+          isProjectDraft = Boolean(p.isDraft);
+          updateProjectNameDisplay(p.name);
+        } else {
+          currentProjectId = initialProjectId;
+          isProjectDraft = initialProjectId.startsWith('proj_draft_');
+        }
+      } catch (err) {
+        console.error('Error loading project from storage:', err);
+      }
+      timelineFrame.src = 'timeline.html?project=' + encodeURIComponent(initialProjectId);
+    } else {
+      isProjectDraft = true;
+    }
+
+    function hideWorkstationLoader() {
+      const bootLoader = document.getElementById('workstation-boot-loader');
+      if (bootLoader && bootLoader.classList.contains('is-active')) {
+        bootLoader.classList.remove('is-active');
+        setTimeout(() => {
+          bootLoader.style.display = 'none';
+        }, 360);
+      }
+    }
+
+    setTimeout(hideWorkstationLoader, 1400);
+
+    timelineFrame.addEventListener('load', () => {
+      setTimeout(hideWorkstationLoader, 100);
+      if (currentProjectId) {
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'LOAD_PROJECT_FROM_DB',
+          projectId: currentProjectId
+        }, '*');
+      }
+    });
+
+    /* In-Project Renaming Logic */
+    function renameCurrentProject(newName) {
+      newName = (newName || '').trim();
+      if (!newName) {
+        updateProjectNameDisplay(currentProjectName);
+        return;
+      }
+      if (newName === currentProjectName) {
+        return;
+      }
+
+      updateProjectNameDisplay(newName);
+
+      // 1. If project has already been saved, persist rename in localStorage & IndexedDB
+      if (currentProjectId) {
+        try {
+          let list = JSON.parse(localStorage.getItem('muziro_projects') || '[]');
+          const idx = list.findIndex(p => p.id === currentProjectId);
+          if (idx !== -1) {
+            list[idx].name = currentProjectName;
+            list[idx].updatedAt = new Date().toISOString();
+            localStorage.setItem('muziro_projects', JSON.stringify(list));
+          }
+        } catch (e) {
+          console.error('Failed to update localStorage on rename:', e);
+        }
+
+        // Notify timeline iframe to update its IndexedDB record
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'RENAME_PROJECT',
+          projectId: currentProjectId,
+          newName: currentProjectName
+        }, '*');
+
+        showSaveToast('Project renamed');
+      } else {
+        // Project not yet saved into database; update name for upcoming save
+        showSaveToast('Project renamed');
+      }
+    }
+
+    const projectNameBadge = document.getElementById('project-name-badge');
+    const projectNameInlineInput = document.getElementById('project-name-inline-input');
+
+    if (projectNameBadge && projectNameInlineInput) {
+      projectNameBadge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        projectNameBadge.style.display = 'none';
+        projectNameInlineInput.style.display = 'inline-block';
+        projectNameInlineInput.value = currentProjectName || 'Untitled Project';
+        projectNameInlineInput.focus();
+        projectNameInlineInput.select();
+      });
+
+      let isCommittingRename = false;
+      function commitInlineRename() {
+        if (isCommittingRename) return;
+        isCommittingRename = true;
+        const val = projectNameInlineInput.value;
+        projectNameInlineInput.style.display = 'none';
+        projectNameBadge.style.display = 'inline-flex';
+        renameCurrentProject(val);
+        setTimeout(() => { isCommittingRename = false; }, 50);
+      }
+
+      function cancelInlineRename() {
+        if (isCommittingRename) return;
+        isCommittingRename = true;
+        projectNameInlineInput.style.display = 'none';
+        projectNameBadge.style.display = 'inline-flex';
+        updateProjectNameDisplay(currentProjectName);
+        setTimeout(() => { isCommittingRename = false; }, 50);
+      }
+
+      projectNameInlineInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitInlineRename();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelInlineRename();
+        }
+      });
+
+      projectNameInlineInput.addEventListener('blur', () => {
+        commitInlineRename();
+      });
+    }
+
+    function formatTimecode(seconds) {
+      const s = Math.max(0, seconds || 0);
+      const mins = Math.floor(s / 60);
+      const secs = Math.floor(s % 60);
+      const ms = Math.floor((s % 1) * 1000);
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+    }
+
+    function updateStopButtonState() {
+      if (!hasTracks) {
+        stopResetBtn.disabled = true;
+        stopResetBtn.classList.add('is-at-start');
+        return;
+      }
+      stopResetBtn.disabled = false;
+      const atStart = (currentTime <= 0.005) && !isPlaying;
+      if (atStart) {
+        stopResetBtn.classList.add('is-at-start');
+      } else {
+        stopResetBtn.classList.remove('is-at-start');
+      }
+    }
+
+    function setPlayState(playing) {
+      isPlaying = playing;
+      if (isPlaying) {
+        playPauseBtn.classList.add('is-playing');
+        transportLabel.textContent = 'Pause';
+      } else {
+        playPauseBtn.classList.remove('is-playing');
+        transportLabel.textContent = 'Play';
+      }
+      updateStopButtonState();
+    }
+
+    function showLoadingOverlay(text = 'Loading track...') {
+      const overlay = document.getElementById('loading-overlay');
+      const label = document.getElementById('loading-label');
+      if (label && text) label.textContent = text;
+      if (overlay) {
+        overlay.classList.add('is-active');
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+    }
+
+    function hideLoadingOverlay() {
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) {
+        overlay.classList.remove('is-active');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    uploadBtn.addEventListener('click', () => {
+      fileInput.value = '';
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      showLoadingOverlay('Uploading track...');
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'ADD_TRACK',
+          buffer: arrayBuffer,
+          name: file.name
+        }, '*');
+
+        hasTracks = true;
+        playPauseBtn.disabled = false;
+        updateStopButtonState();
+      } catch (err) {
+        console.error('Failed to load audio file:', err);
+        hideLoadingOverlay();
+      }
+    });
+
+    function togglePlay() {
+      if (!hasTracks) return;
+      timelineFrame.contentWindow.postMessage({
+        target: 'MUZIRO_TIMELINE',
+        action: 'TOGGLE_PLAY'
+      }, '*');
+    }
+
+    playPauseBtn.addEventListener('click', () => {
+      playPauseBtn.blur();
+      togglePlay();
+    });
+
+    stopResetBtn.addEventListener('click', () => {
+      stopResetBtn.blur();
+      if (!hasTracks || stopResetBtn.classList.contains('is-at-start')) return;
+
+      timelineFrame.contentWindow.postMessage({
+        target: 'MUZIRO_TIMELINE',
+        action: 'STOP'
+      }, '*');
+      currentTime = 0;
+      setPlayState(false);
+      timecodeValue.textContent = formatTimecode(0);
+      updateStopButtonState();
+    });
+
+    window.addEventListener('message', (e) => {
+      const data = e.data;
+      if (!data || data.type !== 'MUZIRO_TIMELINE') return;
+
+      if (data.action === 'TIMELINE_READY') {
+        hideWorkstationLoader();
+      } else if (data.action === 'TRACK_ADDED' || data.action === 'LOADING_END') {
+        hideWorkstationLoader();
+        hideLoadingOverlay();
+        hasTracks = true;
+        playPauseBtn.disabled = false;
+        updateStopButtonState();
+        triggerDebouncedAutosave(1500);
+      } else if (data.action === 'LOADING_START') {
+        showLoadingOverlay(data.payload && data.payload.text ? data.payload.text : 'Loading track...');
+      } else if (data.action === 'PLAY_STATE') {
+        setPlayState(Boolean(data.payload && data.payload.isPlaying));
+      } else if (data.action === 'TIME_UPDATE') {
+        currentTime = data.payload ? data.payload.time : 0;
+        timecodeValue.textContent = formatTimecode(currentTime);
+        updateStopButtonState();
+      } else if (data.action === 'ended') {
+        currentTime = 0;
+        setPlayState(false);
+        timecodeValue.textContent = formatTimecode(0);
+        updateStopButtonState();
+      } else if (data.action === 'CLIP_MOVED' || data.action === 'CLIP_DELETED' || data.action === 'TRACK_DELETED' || data.action === 'TIMELINE_MUTATED') {
+        hasTracks = true;
+        playPauseBtn.disabled = false;
+        updateStopButtonState();
+        triggerDebouncedAutosave(1200);
+      } else if (data.action === 'HISTORY_STATE') {
+        triggerDebouncedAutosave(1500);
+      } else if (data.action === 'ALL_TRACKS_REMOVED') {
+        hasTracks = false;
+        playPauseBtn.disabled = true;
+        stopResetBtn.disabled = true;
+        setPlayState(false);
+        currentTime = 0;
+        timecodeValue.textContent = formatTimecode(0);
+        updateStopButtonState();
+        triggerDebouncedAutosave(1000);
+      } else if (data.action === 'REQUEST_SAVE') {
+        handleSaveTrigger();
+      } else if (data.action === 'PROJECT_LOADED') {
+        hasTracks = true;
+        playPauseBtn.disabled = false;
+        if (data.payload && data.payload.name) {
+          updateProjectNameDisplay(data.payload.name);
+        }
+        updateStopButtonState();
+      } else if (data.action === 'PROJECT_AUTOSAVED') {
+        saveMetadataToLocalStorage({
+          id: data.payload.id,
+          name: data.payload.name,
+          isDraft: Boolean(data.payload.isDraft),
+          tracksCount: data.payload.tracksCount,
+          clipsCount: data.payload.clipsCount,
+          duration: data.payload.duration
+        });
+      } else if (data.action === 'PROJECT_SAVED') {
+        isProjectDraft = false;
+        saveMetadataToLocalStorage(data.payload);
+        showSaveToast('Saved successfully');
+      } else if (data.action === 'EXPORT_PROGRESS') {
+        const progressFill = document.getElementById('export-progress-fill');
+        const progressPercent = document.getElementById('export-progress-percent');
+        const progressLabel = document.getElementById('export-progress-label');
+        const pct = data.payload?.progress || 50;
+        if (progressFill) progressFill.style.width = `${pct}%`;
+        if (progressPercent) progressPercent.textContent = `${pct}%`;
+        if (progressLabel && data.payload?.status) progressLabel.textContent = data.payload.status;
+      } else if (data.action === 'EXPORT_SUCCESS') {
+        const progressFill = document.getElementById('export-progress-fill');
+        const progressPercent = document.getElementById('export-progress-percent');
+        const progressLabel = document.getElementById('export-progress-label');
+        if (progressFill) progressFill.style.width = '100%';
+        if (progressPercent) progressPercent.textContent = '100%';
+        if (progressLabel) progressLabel.textContent = 'Export complete!';
+        setTimeout(() => {
+          closeExportModal();
+          showSaveToast(`Exported ${data.payload?.filename || 'WAV'}`);
+        }, 400);
+      } else if (data.action === 'EXPORT_ERROR') {
+        const progressContainer = document.getElementById('export-progress-container');
+        const submitBtn = document.getElementById('export-start-btn');
+        const cancelBtn = document.getElementById('export-cancel-btn');
+        const input = document.getElementById('export-filename-input');
+        if (progressContainer) progressContainer.classList.remove('is-active');
+        if (submitBtn) submitBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
+        if (input) input.disabled = false;
+        showSaveToast(data.payload?.message || 'Export failed');
+      }
+    });
+
+    window.addEventListener('wheel', (e) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const rect = timelineFrame.getBoundingClientRect();
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'ZOOM_WHEEL',
+          deltaY: e.deltaY,
+          clientX: e.clientX - rect.left,
+          clientY: e.clientY - rect.top
+        }, '*');
+      }
+    }, { passive: false });
+
+    window.addEventListener('keydown', (e) => {
+      const exitModal = document.getElementById('exit-modal-overlay');
+      if (exitModal && exitModal.classList.contains('is-active')) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeExitModal();
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          confirmExitToMenu();
+          return;
+        }
+      }
+
+      const saveModal = document.getElementById('save-modal-overlay');
+      if (saveModal && saveModal.classList.contains('is-active')) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeSaveModal();
+          return;
+        }
+      }
+
+      // Save: Ctrl+S or Ctrl+Ы (always handled)
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyS' || e.key.toLowerCase() === 's' || e.key.toLowerCase() === 'ы')) {
+        e.preventDefault();
+        handleSaveTrigger();
+        return;
+      }
+
+      const activeTag = document.activeElement ? document.activeElement.tagName : '';
+      if (activeTag === 'TEXTAREA' || (activeTag === 'INPUT' && document.activeElement.type !== 'range')) return;
+
+      // Undo: Ctrl+Z (without Shift)
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyZ' || e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'я')) {
+        e.preventDefault();
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'UNDO'
+        }, '*');
+        return;
+      }
+
+      // Redo: Ctrl+Shift+Z or Ctrl+Y
+      if (((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && (e.code === 'KeyZ' || e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'я')) ||
+          ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyY' || e.key.toLowerCase() === 'y' || e.key.toLowerCase() === 'н'))) {
+        e.preventDefault();
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'REDO'
+        }, '*');
+        return;
+      }
+
+      // Select All: Ctrl+A or Ctrl+Ф
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyA' || e.key.toLowerCase() === 'a' || e.key.toLowerCase() === 'ф')) {
+        e.preventDefault();
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'SELECT_ALL'
+        }, '*');
+        return;
+      }
+
+      // Deselect: Escape
+      if (e.key === 'Escape') {
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'DESELECT_ALL'
+        }, '*');
+        return;
+      }
+
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'DELETE_SELECTED'
+        }, '*');
+      } else if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyB' || e.key.toLowerCase() === 'b' || e.key.toLowerCase() === 'и')) {
+        e.preventDefault();
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'SPLIT_MIDDLE'
+        }, '*');
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.code === 'KeyQ' || e.key.toLowerCase() === 'q' || e.key.toLowerCase() === 'й')) {
+        e.preventDefault();
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'TRIM_START'
+        }, '*');
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.code === 'KeyW' || e.key.toLowerCase() === 'w' || e.key.toLowerCase() === 'ц')) {
+        e.preventDefault();
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'TRIM_END'
+        }, '*');
+      } else if (e.code === 'Space' || e.key === ' ' || e.keyCode === 32) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (document.activeElement && document.activeElement.blur) {
+          document.activeElement.blur();
+        }
+        togglePlay();
+      }
+    });
+
+    const timecodeDisplay = document.getElementById('transport-timecode');
+    if (timecodeDisplay) {
+      timecodeDisplay.addEventListener('click', () => {
+        if (!hasTracks) return;
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'SCROLL_TO_PLAYHEAD'
+        }, '*');
+      });
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      const rect = timelineFrame.getBoundingClientRect();
+      timelineFrame.contentWindow.postMessage({
+        target: 'MUZIRO_TIMELINE',
+        action: 'MOUSE_MOVE',
+        clientX: e.clientX - rect.left,
+        clientY: e.clientY - rect.top
+      }, '*');
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      const rect = timelineFrame.getBoundingClientRect();
+      timelineFrame.contentWindow.postMessage({
+        target: 'MUZIRO_TIMELINE',
+        action: 'MOUSE_UP',
+        clientX: e.clientX - rect.left,
+        clientY: e.clientY - rect.top
+      }, '*');
+    });
+
+    /* Save System & Modal Helpers */
+    function showSaveToast(text = 'Saved successfully', type = 'auto') {
+      const toast = document.getElementById('save-toast');
+      if (!toast) return;
+      const span = toast.querySelector('span');
+      if (span) span.textContent = text;
+
+      const isErr = type === 'error' || (type === 'auto' && (/no\s|error|fail|cannot|invalid|not\s/i.test(text)));
+      const iconSuccess = toast.querySelector('.toast-icon-success');
+      const iconError = toast.querySelector('.toast-icon-error');
+
+      if (iconSuccess && iconError) {
+        if (isErr) {
+          iconSuccess.style.display = 'none';
+          iconError.style.display = 'inline-block';
+        } else {
+          iconSuccess.style.display = 'inline-block';
+          iconError.style.display = 'none';
+        }
+      }
+
+      toast.classList.add('is-active');
+      clearTimeout(window._saveToastTimer);
+      window._saveToastTimer = setTimeout(() => {
+        toast.classList.remove('is-active');
+      }, 2400);
+    }
+
+    function openSaveModal() {
+      const modal = document.getElementById('save-modal-overlay');
+      const input = document.getElementById('save-project-input');
+      if (!modal || !input) return;
+
+      input.value = currentProjectName || 'Untitled Project';
+      modal.classList.add('is-active');
+      modal.setAttribute('aria-hidden', 'false');
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 50);
+    }
+
+    function closeSaveModal() {
+      const modal = document.getElementById('save-modal-overlay');
+      if (modal) {
+        modal.classList.remove('is-active');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    let _autosaveTimer = null;
+    function triggerDebouncedAutosave(delay = 1200) {
+      clearTimeout(_autosaveTimer);
+      _autosaveTimer = setTimeout(() => {
+        executeAutosave();
+      }, delay);
+    }
+
+    function executeAutosave() {
+      if (!hasTracks) return;
+
+      if (!currentProjectId) {
+        currentProjectId = 'proj_draft_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        isProjectDraft = true;
+        try {
+          window.history.replaceState({}, '', '?project=' + encodeURIComponent(currentProjectId));
+        } catch (e) {}
+      }
+
+      const activeName = currentProjectName || 'Untitled Project';
+
+      timelineFrame.contentWindow.postMessage({
+        target: 'MUZIRO_TIMELINE',
+        action: 'AUTOSAVE_PROJECT_TO_DB',
+        projectId: currentProjectId,
+        projectName: activeName,
+        isDraft: isProjectDraft
+      }, '*');
+    }
+
+    window.addEventListener('beforeunload', () => {
+      if (hasTracks) executeAutosave();
+    });
+    window.addEventListener('pagehide', () => {
+      if (hasTracks) executeAutosave();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && hasTracks) {
+        executeAutosave();
+      }
+    });
+
+    function executeSave(projectName) {
+      if (!projectName || !projectName.trim()) {
+        projectName = 'Untitled Project';
+      }
+      projectName = projectName.trim();
+
+      if (!currentProjectId) {
+        currentProjectId = 'proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+      }
+      isProjectDraft = false;
+      updateProjectNameDisplay(projectName);
+
+      closeSaveModal();
+
+      try {
+        window.history.replaceState({}, '', '?project=' + encodeURIComponent(currentProjectId));
+      } catch (e) {}
+
+      // Trigger IndexedDB audio and track persistence in timeline
+      timelineFrame.contentWindow.postMessage({
+        target: 'MUZIRO_TIMELINE',
+        action: 'SAVE_PROJECT_TO_DB',
+        projectId: currentProjectId,
+        projectName: currentProjectName,
+        isDraft: false
+      }, '*');
+    }
+
+    function saveMetadataToLocalStorage(payload) {
+      try {
+        let list = JSON.parse(localStorage.getItem('muziro_projects') || '[]');
+        const existingIdx = list.findIndex(p => p.id === payload.id);
+        const now = new Date().toISOString();
+        const projectMeta = {
+          id: payload.id,
+          name: payload.name,
+          isDraft: payload.isDraft !== undefined ? Boolean(payload.isDraft) : Boolean(isProjectDraft),
+          createdAt: existingIdx >= 0 ? list[existingIdx].createdAt : now,
+          updatedAt: now,
+          tracksCount: payload.tracksCount || (hasTracks ? 1 : 0),
+          clipsCount: payload.clipsCount || 0,
+          duration: payload.duration || formatTimecode(currentTime)
+        };
+
+        if (existingIdx >= 0) {
+          list[existingIdx] = projectMeta;
+        } else {
+          list.unshift(projectMeta);
+        }
+        localStorage.setItem('muziro_projects', JSON.stringify(list));
+      } catch (e) {
+        console.error('Failed to save to localStorage:', e);
+      }
+    }
+
+    function handleSaveTrigger() {
+      // If project has already been permanently named / saved:
+      if (currentProjectId && currentProjectName && !isProjectDraft) {
+        // Direct save to IndexedDB without showing modal
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'SAVE_PROJECT_TO_DB',
+          projectId: currentProjectId,
+          projectName: currentProjectName,
+          isDraft: false
+        }, '*');
+      } else {
+        // First permanent save or promoting draft: prompt with modal dialog
+        openSaveModal();
+      }
+    }
+
+    document.getElementById('save-project-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('save-project-input');
+      executeSave(input.value);
+    });
+
+    document.getElementById('save-cancel-btn').addEventListener('click', closeSaveModal);
+    document.getElementById('save-modal-overlay').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('save-modal-overlay')) {
+        closeSaveModal();
+      }
+    });
+
+    const topSaveBtn = document.getElementById('save-btn');
+    if (topSaveBtn) {
+      topSaveBtn.addEventListener('click', handleSaveTrigger);
+    }
+
+    /* Return to Menu Modal Helpers */
+    function openExitModal() {
+      const modal = document.getElementById('exit-modal-overlay');
+      if (!modal) return;
+      modal.classList.add('is-active');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeExitModal() {
+      const modal = document.getElementById('exit-modal-overlay');
+      if (!modal) return;
+      modal.classList.remove('is-active');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function confirmExitToMenu() {
+      if (hasTracks) {
+        executeAutosave();
+      }
+      closeExitModal();
+      window.location.href = 'index.html';
+    }
+
+    const backMenuBtn = document.getElementById('back-to-menu-btn');
+    if (backMenuBtn) {
+      backMenuBtn.addEventListener('click', openExitModal);
+    }
+
+    const exitBtn = document.getElementById('exit-btn');
+    if (exitBtn) {
+      exitBtn.addEventListener('click', openExitModal);
+    }
+
+    const exitCancelBtn = document.getElementById('exit-modal-cancel');
+    if (exitCancelBtn) {
+      exitCancelBtn.addEventListener('click', closeExitModal);
+    }
+
+    const exitConfirmBtn = document.getElementById('exit-modal-confirm');
+    if (exitConfirmBtn) {
+      exitConfirmBtn.addEventListener('click', confirmExitToMenu);
+    }
+
+    const exitModalOverlay = document.getElementById('exit-modal-overlay');
+    if (exitModalOverlay) {
+      exitModalOverlay.addEventListener('click', (e) => {
+        if (e.target === exitModalOverlay) {
+          closeExitModal();
+        }
+      });
+    }
+
+    /* ==========================================================================
+       Export Audio Engine & Modal Management
+       ========================================================================== */
+    const exportConfig = {
+      format: 'wav',
+      sampleRate: 44100,
+      channels: 2,
+      bitDepth: 16,
+      bitrate: 320
+    };
+
+    function updateExportSpecDisplay() {
+      const badge = document.getElementById('export-spec-badge');
+      const depth = document.getElementById('export-spec-depth');
+      const meta = document.getElementById('export-spec-meta');
+      const bitdepthGroup = document.getElementById('export-bitdepth-group');
+      const bitrateGroup = document.getElementById('export-bitrate-group');
+
+      const isLossless = exportConfig.format === 'wav' || exportConfig.format === 'aiff' || exportConfig.format === 'flac';
+
+      if (bitdepthGroup) bitdepthGroup.style.display = isLossless ? 'flex' : 'none';
+      if (bitrateGroup) bitrateGroup.style.display = isLossless ? 'none' : 'flex';
+
+      if (badge) badge.textContent = exportConfig.format.toUpperCase();
+
+      if (depth) {
+        if (isLossless) {
+          depth.textContent = exportConfig.bitDepth === 32 ? '32-bit Float' : `${exportConfig.bitDepth}-bit PCM`;
+        } else {
+          depth.textContent = `${exportConfig.bitrate} kbps`;
+        }
+      }
+
+      if (meta) {
+        const chanText = exportConfig.channels === 1 ? 'Mono' : 'Stereo';
+        const srText = `${(exportConfig.sampleRate / 1000).toFixed(1)} kHz`;
+        meta.textContent = `${chanText} • ${srText}`;
+      }
+    }
+
+    function initExportControls() {
+      // Format Chips
+      const formatChips = document.querySelectorAll('.export-format-chip');
+      formatChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          formatChips.forEach(c => c.classList.remove('is-active'));
+          chip.classList.add('is-active');
+          exportConfig.format = chip.dataset.format || 'wav';
+          updateExportSpecDisplay();
+        });
+      });
+
+      // Sample Rate Select
+      const sampleRateSelect = document.getElementById('export-sample-rate-select');
+      if (sampleRateSelect) {
+        sampleRateSelect.addEventListener('change', () => {
+          exportConfig.sampleRate = parseInt(sampleRateSelect.value, 10) || 44100;
+          updateExportSpecDisplay();
+        });
+      }
+
+      // Channel Buttons
+      const chanStereo = document.getElementById('export-chan-stereo');
+      const chanMono = document.getElementById('export-chan-mono');
+      if (chanStereo && chanMono) {
+        chanStereo.addEventListener('click', () => {
+          chanStereo.classList.add('is-active');
+          chanMono.classList.remove('is-active');
+          exportConfig.channels = 2;
+          updateExportSpecDisplay();
+        });
+        chanMono.addEventListener('click', () => {
+          chanMono.classList.add('is-active');
+          chanStereo.classList.remove('is-active');
+          exportConfig.channels = 1;
+          updateExportSpecDisplay();
+        });
+      }
+
+      // Bit Depth Select
+      const bitDepthSelect = document.getElementById('export-bitdepth-select');
+      if (bitDepthSelect) {
+        bitDepthSelect.addEventListener('change', () => {
+          exportConfig.bitDepth = parseInt(bitDepthSelect.value, 10) || 16;
+          updateExportSpecDisplay();
+        });
+      }
+
+      // Bitrate Select
+      const bitrateSelect = document.getElementById('export-bitrate-select');
+      if (bitrateSelect) {
+        bitrateSelect.addEventListener('change', () => {
+          exportConfig.bitrate = parseInt(bitrateSelect.value, 10) || 320;
+          updateExportSpecDisplay();
+        });
+      }
+
+      updateExportSpecDisplay();
+    }
+
+    function openExportModal() {
+      if (!hasTracks) {
+        showSaveToast('No audio tracks to export', 'error');
+        return;
+      }
+      const modal = document.getElementById('export-modal-overlay');
+      const input = document.getElementById('export-filename-input');
+      const progressContainer = document.getElementById('export-progress-container');
+      const progressFill = document.getElementById('export-progress-fill');
+      const progressPercent = document.getElementById('export-progress-percent');
+      const progressLabel = document.getElementById('export-progress-label');
+      const submitBtn = document.getElementById('export-start-btn');
+      const cancelBtn = document.getElementById('export-cancel-btn');
+
+      if (!modal || !input) return;
+
+      input.value = currentProjectName || 'Muziro_Mixdown';
+      input.disabled = false;
+      if (submitBtn) submitBtn.disabled = false;
+      if (cancelBtn) cancelBtn.disabled = false;
+      if (progressContainer) progressContainer.classList.remove('is-active');
+      if (progressFill) progressFill.style.width = '0%';
+      if (progressPercent) progressPercent.textContent = '0%';
+      if (progressLabel) progressLabel.textContent = 'Rendering multitrack mixdown...';
+
+      modal.classList.add('is-active');
+      modal.setAttribute('aria-hidden', 'false');
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 50);
+    }
+
+    function closeExportModal() {
+      const modal = document.getElementById('export-modal-overlay');
+      if (modal) {
+        modal.classList.remove('is-active');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    function startExportProcess() {
+      const input = document.getElementById('export-filename-input');
+      const filename = (input ? input.value : '').trim() || (currentProjectName || 'Muziro_Mixdown');
+
+      const progressContainer = document.getElementById('export-progress-container');
+      const progressFill = document.getElementById('export-progress-fill');
+      const progressPercent = document.getElementById('export-progress-percent');
+      const progressLabel = document.getElementById('export-progress-label');
+      const submitBtn = document.getElementById('export-start-btn');
+      const cancelBtn = document.getElementById('export-cancel-btn');
+
+      if (progressContainer) progressContainer.classList.add('is-active');
+      if (progressFill) progressFill.style.width = '10%';
+      if (progressPercent) progressPercent.textContent = '10%';
+      if (progressLabel) progressLabel.textContent = `Rendering ${exportConfig.format.toUpperCase()} (${exportConfig.sampleRate / 1000} kHz)...`;
+      if (input) input.disabled = true;
+      if (submitBtn) submitBtn.disabled = true;
+      if (cancelBtn) cancelBtn.disabled = true;
+
+      timelineFrame.contentWindow.postMessage({
+        target: 'MUZIRO_TIMELINE',
+        action: 'EXPORT_PROJECT',
+        payload: {
+          projectName: filename,
+          format: exportConfig.format,
+          sampleRate: exportConfig.sampleRate,
+          channels: exportConfig.channels,
+          bitDepth: exportConfig.bitDepth,
+          bitrate: exportConfig.bitrate
+        }
+      }, '*');
+    }
+
+    const exportBtn = document.getElementById('export-btn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', openExportModal);
+    }
+
+    const exportCancelBtn = document.getElementById('export-cancel-btn');
+    if (exportCancelBtn) {
+      exportCancelBtn.addEventListener('click', closeExportModal);
+    }
+
+    const exportStartBtn = document.getElementById('export-start-btn');
+    if (exportStartBtn) {
+      exportStartBtn.addEventListener('click', startExportProcess);
+    }
+
+    const exportModalOverlay = document.getElementById('export-modal-overlay');
+    if (exportModalOverlay) {
+      exportModalOverlay.addEventListener('click', (e) => {
+        if (e.target === exportModalOverlay) {
+          const cancelBtn = document.getElementById('export-cancel-btn');
+          if (cancelBtn && !cancelBtn.disabled) {
+            closeExportModal();
+          }
+        }
+      });
+    }
+
+    // Initialize Export Controls
+    initExportControls();
+
+    // Modal Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      const exportModal = document.getElementById('export-modal-overlay');
+      if (exportModal && exportModal.classList.contains('is-active')) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          const cancelBtn = document.getElementById('export-cancel-btn');
+          if (cancelBtn && !cancelBtn.disabled) closeExportModal();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          const submitBtn = document.getElementById('export-start-btn');
+          if (submitBtn && !submitBtn.disabled) startExportProcess();
+        }
+        return;
+      }
+
+      const saveModal = document.getElementById('save-modal-overlay');
+      if (saveModal && saveModal.classList.contains('is-active')) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeSaveModal();
+        }
+        return;
+      }
+
+      const exitModal = document.getElementById('exit-modal-overlay');
+      if (exitModal && exitModal.classList.contains('is-active')) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeExitModal();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          confirmExitToMenu();
+        }
+      }
+    });
+  </script>
+</body>
+</html>

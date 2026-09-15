@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>Muziro.ico</ApplicationIcon>
+    <AssemblyName>Muziro</AssemblyName>
+    <RootNamespace>Muziro</RootNamespace>
+    <Version>1.0.0</Version>
+    <Authors>Muziro</Authors>
+    <Product>Muziro Digital Audio Workstation</Product>
+    <Description>Professional Multitrack Web DAW Desktop Host</Description>
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Muziro.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- Embedded resources for true standalone offline portability -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\index.html" LogicalName="index.html" />
+    <EmbeddedResource Include="..\process.html" LogicalName="process.html" />
+    <EmbeddedResource Include="..\timeline.html" LogicalName="timeline.html" />
+    <EmbeddedResource Include="..\logo1.jpg" LogicalName="logo1.jpg" />
+    <EmbeddedResource Include="..\Muziro.ico" LogicalName="Muziro.ico" />
+    <EmbeddedResource Include="..\animations\**\*" LogicalName="animations/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\functions\**\*" LogicalName="functions/%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('..\functions')" />
+  </ItemGroup>
+
+  <!-- Automatically copy web assets, animations and functions to wwwroot folder during build and publish -->
+  <ItemGroup>
+    <WebFiles Include="..\index.html;..\process.html;..\timeline.html;..\logo1.jpg;..\Muziro.ico" />
+    <AnimationFiles Include="..\animations\**\*" />
+    <FunctionFiles Include="..\functions\**\*" />
+  </ItemGroup>
+
+  <Target Name="CopyWebAssets" BeforeTargets="Build;Publish">
+    <Copy SourceFiles="@(WebFiles)" DestinationFolder="$(OutputPath)wwwroot\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(AnimationFiles)" DestinationFolder="$(OutputPath)wwwroot\animations\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(FunctionFiles)" DestinationFolder="$(OutputPath)wwwroot\functions\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(WebFiles)" DestinationFolder="$(PublishDir)wwwroot\" SkipUnchangedFiles="true" Condition="'$(PublishDir)' != ''" />
+    <Copy SourceFiles="@(AnimationFiles)" DestinationFolder="$(PublishDir)wwwroot\animations\%(RecursiveDir)" SkipUnchangedFiles="true" Condition="'$(PublishDir)' != ''" />
+    <Copy SourceFiles="@(FunctionFiles)" DestinationFolder="$(PublishDir)wwwroot\functions\%(RecursiveDir)" SkipUnchangedFiles="true" Condition="'$(PublishDir)' != ''" />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
+  </ItemGroup>
+
+</Project>

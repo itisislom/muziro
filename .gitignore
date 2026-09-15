@@ -1,0 +1,21 @@
+# Visual Studio / .NET Build Artifacts
+desktop/bin/
+desktop/obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Distribution executable (published to GitHub Releases)
+dist/
+
+# Scratch & Temporary Testing Scripts
+scratch/
+
+# OS Generated Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
