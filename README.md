@@ -1,9 +1,11 @@
 # Muziro DAW
 
-[![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20x64-black?style=flat-square)](https://github.com)
+[![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20x64-black?style=flat-square)](https://github.com/itisislom/muziro)
+[![Release](https://img.shields.io/badge/Release-v1.0.0%20(Windows%20x64)-black?style=flat-square&logo=windows)](https://github.com/itisislom/muziro/releases/tag/v1.0.0)
+[![Download .exe](https://img.shields.io/badge/Download-Muziro.exe-22c55e?style=flat-square&logo=windows)](https://github.com/itisislom/muziro/releases/download/v1.0.0/Muziro.exe)
 [![Engine](https://img.shields.io/badge/Audio%20Engine-Web%20Audio%20API-black?style=flat-square)](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
-[![Architecture](https://img.shields.io/badge/Stack-Vanilla%20JS%20%7C%20Canvas%20%7C%20SVG%20%7C%20IndexedDB-black?style=flat-square)](https://github.com)
-[![Desktop](https://img.shields.io/badge/Desktop-.NET%208%20%7C%20WebView2-black?style=flat-square)](https://github.com)
+[![Stack](https://img.shields.io/badge/Stack-Vanilla%20JS%20%7C%20Canvas%20%7C%20SVG%20%7C%20IndexedDB-black?style=flat-square)](https://github.com/itisislom/muziro)
+[![Desktop](https://img.shields.io/badge/Desktop-.NET%208%20%7C%20WebView2-black?style=flat-square)](https://github.com/itisislom/muziro)
 [![License](https://img.shields.io/badge/License-Proprietary%20%7C%20All%20Rights%20Reserved-black?style=flat-square)](license.md)
 [![Telegram](https://img.shields.io/badge/Contact%20Author-%40itsislomm-0088cc?style=flat-square&logo=telegram&logoColor=white)](https://t.me/itsislomm)
 
@@ -146,10 +148,19 @@ Muziro/
 
 ---
 
-## Getting Started & Building
+## Download & Getting Started
+
+### 🚀 Direct Windows Download (.exe)
+You can download the pre-compiled standalone Windows desktop executable directly from GitHub Releases:
+- **Download Latest**: [**Muziro.exe (Windows x64)**](https://github.com/itisislom/muziro/releases/download/v1.0.0/Muziro.exe)
+- **GitHub Release Details**: [**v1.0.0 Release Notes**](https://github.com/itisislom/muziro/releases/tag/v1.0.0)
+
+*Simply download and run `Muziro.exe`. No installation required.*
+
+---
 
 ### Running in a Web Browser
-Muziro runs directly in any modern Chromium-based browser supporting the Web Audio API and IndexedDB:
+Muziro can also run directly in any modern Chromium-based browser supporting the Web Audio API and IndexedDB:
 1. Start a local HTTP static server in the root directory:
    ```bash
    # Using Python:
@@ -160,8 +171,8 @@ Muziro runs directly in any modern Chromium-based browser supporting the Web Aud
    ```
 2. Navigate to `http://localhost:8080/index.html` in your browser.
 
-### Building the Windows Desktop Application
-Muziro can be compiled into a standalone Windows desktop executable with embedded WebView2:
+### Building the Windows Desktop Application from Source
+To build the standalone Windows executable yourself:
 1. Ensure the [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) is installed.
 2. Run the automated build script:
    ```cmd
@@ -169,9 +180,9 @@ Muziro can be compiled into a standalone Windows desktop executable with embedde
    ```
    Or publish manually via the .NET CLI:
    ```cmd
-   dotnet publish desktop/Muziro.csproj -c Release -r win-x64 --self-contained false -o dist/
+   dotnet publish desktop/Muziro.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist/
    ```
-3. The compiled binary will be located at `dist/Muziro.exe`.
+3. The compiled binary will be generated at `dist/Muziro.exe`.
 
 ---
 
