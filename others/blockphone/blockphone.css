@@ -1,0 +1,150 @@
+/* ==========================================================================
+   Muziro Desktop Workstation Lockscreen (Anti-Mobile Shield)
+   ========================================================================== */
+
+#mz-device-guard-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 2147483647 !important;
+  background: radial-gradient(circle at 50% 30%, #161618 0%, #09090b 70%, #040405 100%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  color: #f4f4f5 !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  overflow: hidden !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.mzg-container {
+  width: 100% !important;
+  max-width: 440px !important;
+  background: rgba(22, 22, 26, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 20px !important;
+  padding: 36px 28px !important;
+  text-align: center !important;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(28px) !important;
+  -webkit-backdrop-filter: blur(28px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  animation: mzgFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+@keyframes mzgFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.mzg-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: rgba(239, 68, 68, 0.12) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  color: #f87171 !important;
+  padding: 5px 12px !important;
+  border-radius: 9999px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
+  margin-bottom: 20px !important;
+}
+
+.mzg-badge-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background-color: #ef4444 !important;
+  box-shadow: 0 0 8px #ef4444 !important;
+  animation: mzgPulse 1.8s infinite !important;
+}
+
+@keyframes mzgPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.mzg-icon-wrap {
+  width: 72px !important;
+  height: 72px !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-bottom: 22px !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+.mzg-title {
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  margin: 0 0 10px 0 !important;
+  letter-spacing: -0.4px !important;
+  line-height: 1.25 !important;
+}
+
+.mzg-desc {
+  font-size: 14px !important;
+  color: #a1a1aa !important;
+  line-height: 1.55 !important;
+  margin: 0 0 24px 0 !important;
+  padding: 0 6px !important;
+}
+
+.mzg-features {
+  width: 100% !important;
+  background: rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 14px !important;
+  padding: 14px 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  box-sizing: border-box !important;
+  margin-bottom: 24px !important;
+  text-align: left !important;
+}
+
+.mzg-feature-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font-size: 12px !important;
+  color: #d4d4d8 !important;
+  font-weight: 500 !important;
+}
+
+.mzg-feature-icon {
+  color: #22c55e !important;
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+
+.mzg-footer-note {
+  font-size: 11px !important;
+  color: #71717a !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+}

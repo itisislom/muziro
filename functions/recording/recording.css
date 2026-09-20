@@ -1,0 +1,424 @@
+/* ==========================================================================
+   Muziro Track Recording Engine Styles
+   - R Button on Track Headers
+   - Microphone Selection Modal
+   - 3-2-1 Cinematic Countdown
+   - Live Timeline Recording Strip
+   - Floating Recording Status Bar
+   ========================================================================== */
+
+/* Track Record Button in Left Column Header */
+.track-record-btn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #d4d4d4;
+  border-radius: 4px;
+  color: #555555;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
+  user-select: none;
+}
+
+.track-record-btn:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background-color: #fef2f2;
+  transform: scale(1.08);
+}
+
+.track-record-btn:active {
+  transform: scale(0.95);
+}
+
+/* Armed & Active Recording State for R button */
+.track-record-btn.is-recording {
+  background-color: #ef4444 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+  animation: recPulseBtn 1.2s infinite ease-in-out;
+}
+
+@keyframes recPulseBtn {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.65);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    transform: scale(1);
+  }
+}
+
+/* Microphone Selection Modal Overlay */
+.mic-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10005;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              backdrop-filter 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.22s ease;
+}
+
+.mic-modal-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+/* Rectangular Modal Card */
+.mic-modal-card {
+  width: 90%;
+  max-width: 360px;
+  background: #111111;
+  border: 1px solid #282828;
+  border-radius: 0px; /* Sharp corners as requested */
+  box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.7);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transform: scale(0.92) translateY(8px);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #ffffff;
+}
+
+.mic-modal-overlay.is-active .mic-modal-card {
+  transform: scale(1) translateY(0);
+}
+
+.mic-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #222222;
+  padding-bottom: 12px;
+}
+
+.mic-modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mic-modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+}
+
+.mic-target-track-badge {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  background: #222222;
+  color: #aaaaaa;
+  padding: 2px 6px;
+  border-radius: 2px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dropdown & Form Controls */
+.mic-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mic-form-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mic-select-dropdown {
+  width: 100%;
+  height: 38px;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  border: 1px solid #333333;
+  border-radius: 0px;
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.mic-select-dropdown:focus {
+  border-color: #ffffff;
+}
+
+/* Live Level VU Meter */
+.mic-meter-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mic-meter-track {
+  width: 100%;
+  height: 8px;
+  background: #1e1e1e;
+  overflow: hidden;
+  border-radius: 1px;
+  position: relative;
+}
+
+.mic-meter-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #22c55e 0%, #eab308 70%, #ef4444 100%);
+  transition: width 0.05s linear;
+}
+
+.mic-meter-caption {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: #666666;
+  font-family: ui-monospace, monospace;
+}
+
+/* Modal Buttons */
+.mic-modal-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.mic-btn {
+  flex: 1;
+  height: 38px;
+  border-radius: 0px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: none;
+  font-family: inherit;
+  letter-spacing: 0.5px;
+}
+
+.mic-btn-cancel {
+  background: transparent;
+  color: #aaaaaa;
+  border: 1px solid #383838;
+}
+
+.mic-btn-cancel:hover {
+  background: #222222;
+  color: #ffffff;
+}
+
+.mic-btn-start {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.mic-btn-start:hover {
+  background: #dc2626;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.4);
+}
+
+/* Countdown Overlay */
+.rec-countdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10010;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.rec-countdown-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.rec-countdown-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.rec-countdown-number {
+  font-size: 96px;
+  font-weight: 900;
+  color: #ffffff;
+  font-family: ui-monospace, -apple-system, sans-serif;
+  line-height: 1;
+  text-shadow: 0 0 30px rgba(239, 68, 68, 0.8), 0 4px 12px rgba(0, 0, 0, 0.8);
+  animation: countdownBeat 0.85s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.rec-countdown-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ef4444;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+@keyframes countdownBeat {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.2;
+  }
+  30% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+}
+
+/* Live Recording Strip on Timeline Lane */
+.live-recording-clip {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 0;
+  display: none;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(239, 68, 68, 0.2),
+    rgba(239, 68, 68, 0.2) 10px,
+    rgba(239, 68, 68, 0.32) 10px,
+    rgba(239, 68, 68, 0.32) 20px
+  );
+  border: 1.5px solid #ef4444;
+  border-radius: 4px;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+  pointer-events: none;
+  z-index: 25;
+  align-items: center;
+  padding: 0 4px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.live-rec-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  font-family: ui-monospace, monospace;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.live-rec-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  animation: recDotBlink 0.9s infinite alternate;
+}
+
+@keyframes recDotBlink {
+  from { opacity: 0.3; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1.2); }
+}
+
+/* Floating Top Recording Status Pill */
+.timeline-rec-banner {
+  position: absolute;
+  top: 6px;
+  right: 14px;
+  z-index: 50;
+  background: rgba(17, 17, 17, 0.9);
+  border: 1px solid #ef4444;
+  border-radius: 4px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.25);
+  animation: bannerFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes bannerFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.timeline-rec-banner-text {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: ui-monospace, monospace;
+}
+
+.timeline-rec-banner-stop-btn {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  border-radius: 2px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.timeline-rec-banner-stop-btn:hover {
+  background: #dc2626;
+  transform: scale(1.05);
+}

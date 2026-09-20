@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Muziro - Digital Audio Workstation</title>
   <link rel="stylesheet" href="functions/export/export.css">
+  <!-- Muziro Anti-Mobile Shield -->
+  <link rel="stylesheet" href="others/blockphone/blockphone.css">
+  <script src="others/blockphone/blockphone.js"></script>
   <style>
     * {
       margin: 0;
@@ -1486,6 +1489,12 @@
         timelineFrame.contentWindow.postMessage({
           target: 'MUZIRO_TIMELINE',
           action: 'TRIM_END'
+        }, '*');
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.code === 'KeyR' || e.key.toLowerCase() === 'r' || e.key.toLowerCase() === 'к')) {
+        e.preventDefault();
+        timelineFrame.contentWindow.postMessage({
+          target: 'MUZIRO_TIMELINE',
+          action: 'TOGGLE_RECORD'
         }, '*');
       } else if (e.code === 'Space' || e.key === ' ' || e.keyCode === 32) {
         e.preventDefault();

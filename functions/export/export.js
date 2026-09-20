@@ -442,7 +442,26 @@
 
           const clipGainNode = offlineCtx.createGain();
           source.connect(clipGainNode);
-          clipGainNode.connect(trackGainNode);
+          
+          if (clip.reverb && clip.reverb > 0 && typeof window !== 'undefined' && window.MuziroReverb) {
+            const reverbAmt = clip.reverb / 100;
+            const dryGain = offlineCtx.createGain();
+            dryGain.gain.value = 1 - reverbAmt;
+            const wetGain = offlineCtx.createGain();
+            wetGain.gain.value = reverbAmt;
+            
+            const convolver = offlineCtx.createConvolver();
+            convolver.buffer = window.MuziroReverb.getImpulseResponse(offlineCtx);
+            
+            clipGainNode.connect(dryGain);
+            clipGainNode.connect(convolver);
+            convolver.connect(wetGain);
+            
+            dryGain.connect(trackGainNode);
+            wetGain.connect(trackGainNode);
+          } else {
+            clipGainNode.connect(trackGainNode);
+          }
 
           const fadeIn = Math.max(0, Math.min(clipDuration, clip.fadeIn || 0));
           const fadeOut = Math.max(0, Math.min(clipDuration - fadeIn, clip.fadeOut || 0));

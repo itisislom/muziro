@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Muziro Timeline</title>
+  <link rel="stylesheet" href="functions/effects/reverb/reverb.css">
+  <link rel="stylesheet" href="functions/recording/recording.css">
   <style>
     * {
       margin: 0;
@@ -114,6 +116,13 @@
     }
     .track-info-card:hover {
       background-color: #efefef;
+    }
+    .track-info-card.is-selected-track {
+      background-color: #ebebeb;
+      box-shadow: inset 3px 0 0 #000000;
+    }
+    .track-info-card.is-selected-track:hover {
+      background-color: #e4e4e4;
     }
     .track-drag-handle {
       display: flex;
@@ -366,6 +375,9 @@
     }
     .track-wave-lane:nth-child(even) {
       background-color: #fafafa;
+    }
+    .track-wave-lane.is-selected-track {
+      background-color: #f1f2f5 !important;
     }
     .audio-clip {
       position: absolute;
@@ -1203,8 +1215,15 @@
   <script src="functions/export/lame.min.js"></script>
   <script src="functions/export/export.js"></script>
 
+  <!-- Muziro Effects -->
+  <script src="functions/effects/reverb/reverb.js"></script>
+
+  <!-- Muziro Recording -->
+  <script src="functions/recording/recording.js"></script>
+
   <script>
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    window._muziroAudioContext = audioContext;
     const tracks = []; // { id, name, duration, buffer, canvas }
     let maxDuration = 0;
     let freeTimelineDuration = 0;
@@ -1214,6 +1233,30 @@
     let animFrame = null;
     let activeSources = [];
     let zoomLevel = 1.0; // 1.0 to 30.0
+    let selectedTrackId = null;
+
+    function selectTrack(trackId) {
+      if (!trackId) return;
+      selectedTrackId = trackId;
+      tracks.forEach(t => {
+        const h = document.getElementById(`header-${t.id}`);
+        if (h) {
+          if (t.id === trackId) {
+            h.classList.add('is-selected-track');
+          } else {
+            h.classList.remove('is-selected-track');
+          }
+        }
+        if (t.waveLane) {
+          if (t.id === trackId) {
+            t.waveLane.classList.add('is-selected-track');
+          } else {
+            t.waveLane.classList.remove('is-selected-track');
+          }
+        }
+      });
+      notifyParent('TRACK_SELECTED', { trackId: selectedTrackId });
+    }
 
     const rightColumn = document.getElementById('timeline-right-column');
     const gridContent = document.getElementById('timeline-grid-content');
@@ -1536,6 +1579,7 @@
           <div class="track-title" title="Click to rename: ${track.name}">${track.name}</div>
           <div class="track-time">${formatTime(track.duration)}</div>
         </div>
+        <button class="track-record-btn" id="btn-rec-${track.id}" title="Record to this track (R) · Right-click for microphone settings" aria-label="Record to this track">R</button>
         <button class="track-delete-btn" title="Delete track" aria-label="Delete track">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline>
@@ -1546,9 +1590,14 @@
         </button>
       `;
 
+      headerCard.addEventListener('click', (e) => {
+        if (e.target.closest('input, .track-vol-badge, .track-title-input, .track-delete-btn, .track-record-btn')) return;
+        selectTrack(track.id);
+      });
+
       headerCard.addEventListener('mousedown', (e) => {
         if (e.button !== 0) return;
-        if (e.target.closest('input, .track-vol-badge, .track-title-input, .track-delete-btn')) return;
+        if (e.target.closest('input, .track-vol-badge, .track-title-input, .track-delete-btn, .track-record-btn')) return;
 
         trackDragInitialSnapshot = captureSnapshot();
         draggedTrack = track;
@@ -1560,6 +1609,30 @@
         window.addEventListener('mousemove', onTrackDragMove);
         window.addEventListener('mouseup', onTrackDragEnd);
       });
+
+      const recBtn = headerCard.querySelector('.track-record-btn');
+      if (recBtn) {
+        recBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectTrack(track.id);
+          if (window.MuziroRecorder) {
+            if (window.MuziroRecorder.getIsRecording() || window.MuziroRecorder.getIsCountingDown()) {
+              window.MuziroRecorder.stopRecording();
+            } else {
+              window.MuziroRecorder.requestRecording(track.id, track.name);
+            }
+          }
+        });
+
+        recBtn.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          selectTrack(track.id);
+          if (window.MuziroRecorder) {
+            window.MuziroRecorder.openSetup(track.id, track.name);
+          }
+        });
+      }
 
       const deleteBtn = headerCard.querySelector('.track-delete-btn');
       if (deleteBtn) {
@@ -1728,6 +1801,7 @@
       renderTrackClips(track);
 
       waveLane.addEventListener('click', (e) => {
+        selectTrack(track.id);
         if (wasMarqueeDraggingJustNow || wasDraggingFadeJustNow || wasDraggingFadeCurveJustNow || wasDraggingClipJustNow || wasDraggingTrackJustNow) return;
         // Only seek if clicking empty space directly on the lane itself, NEVER when clicking clips or handles
         if (e.target !== waveLane) return;
@@ -1898,6 +1972,9 @@
       const elements = createTrackRowElements(track);
       headersList.appendChild(elements.header);
       wavesList.appendChild(elements.lane);
+      if (!selectedTrackId) {
+        selectTrack(track.id);
+      }
       return elements;
     }
 
@@ -1989,6 +2066,14 @@
         const fadeOutCurveHandle = clipEl.querySelector('.fade-out-curve-handle');
         const trimLeftHandle = clipEl.querySelector('.trim-handle-left');
         const trimRightHandle = clipEl.querySelector('.trim-handle-right');
+
+        clipEl.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          selectClip(clip.id); // Select clip when right clicked
+          if (window.MuziroReverb) {
+            window.MuziroReverb.showContextMenu(e.clientX, e.clientY, clip.id, clip.reverb || 0);
+          }
+        });
 
         fadeInHandle.addEventListener('mousedown', (e) => {
           if (e.button !== 0) return;
@@ -2507,6 +2592,10 @@
           updateClipFades(clip, widthPx);
         });
       });
+
+      if (typeof updateLiveRecordingVisuals === 'function') {
+        updateLiveRecordingVisuals();
+      }
     }
 
     function updateClipFades(clip, widthPx) {
@@ -3178,6 +3267,10 @@
         selectedClipIds.add(clipId);
         selectedClipId = clipId;
         updateClipVisualSelection(clipId, true);
+        const parentTrack = tracks.find(t => t.clips && t.clips.some(c => c.id === clipId));
+        if (parentTrack) {
+          selectTrack(parentTrack.id);
+        }
         notifyParent('CLIPS_SELECTED', { ids: Array.from(selectedClipIds), count: selectedClipIds.size, primaryId: clipId });
         notifyParent('CLIP_SELECTED', { id: clipId });
       } else {
@@ -3650,7 +3743,8 @@
             fadeIn: c.fadeIn || 0,
             fadeOut: c.fadeOut || 0,
             fadeInCurve: c.fadeInCurve || 0,
-            fadeOutCurve: c.fadeOutCurve || 0
+            fadeOutCurve: c.fadeOutCurve || 0,
+            reverb: c.reverb || 0
           }))
         }))
       };
@@ -3711,8 +3805,8 @@
             sourceOffset: sClip.sourceOffset || 0,
             fadeIn: sClip.fadeIn || 0,
             fadeOut: sClip.fadeOut || 0,
-            fadeInCurve: sClip.fadeInCurve || 0,
-            fadeOutCurve: sClip.fadeOutCurve || 0
+            fadeOutCurve: sClip.fadeOutCurve || 0,
+            reverb: sClip.reverb || 0
           }))
         };
 
@@ -4117,7 +4211,26 @@
 
             const clipGainNode = audioContext.createGain();
             source.connect(clipGainNode);
-            clipGainNode.connect(track.gainNode);
+            
+            if (clip.reverb && clip.reverb > 0 && window.MuziroReverb) {
+              const reverbAmt = clip.reverb / 100;
+              const dryGain = audioContext.createGain();
+              dryGain.gain.value = 1 - reverbAmt;
+              const wetGain = audioContext.createGain();
+              wetGain.gain.value = reverbAmt;
+              
+              const convolver = audioContext.createConvolver();
+              convolver.buffer = window.MuziroReverb.getImpulseResponse(audioContext);
+              
+              clipGainNode.connect(dryGain);
+              clipGainNode.connect(convolver);
+              convolver.connect(wetGain);
+              
+              dryGain.connect(track.gainNode);
+              wetGain.connect(track.gainNode);
+            } else {
+              clipGainNode.connect(track.gainNode);
+            }
 
             const fadeIn = Math.max(0, Math.min(clip.duration, clip.fadeIn || 0));
             const fadeOut = Math.max(0, Math.min(clip.duration - fadeIn, clip.fadeOut || 0));
@@ -4236,11 +4349,54 @@
       }
     }
 
+    function updateLiveRecordingVisuals() {
+      const recClip = document.getElementById('live-recording-clip');
+      if (!recClip) return;
+      const recStartTime = recClip._recStartTime || 0;
+      const elapsed = Math.max(0, currentPlayheadTime - recStartTime);
+      const laneWidth = rulerBar.offsetWidth;
+      if (laneWidth <= 0 || maxDuration <= 0) return;
+
+      const leftPx = (recStartTime / maxDuration) * laneWidth;
+      const widthPx = (elapsed / maxDuration) * laneWidth;
+
+      if (widthPx > 1) {
+        recClip.style.display = 'flex';
+        recClip.style.left = `${leftPx}px`;
+        recClip.style.width = `${widthPx}px`;
+      } else {
+        recClip.style.display = 'none';
+        recClip.style.left = `${leftPx}px`;
+        recClip.style.width = '0px';
+      }
+
+      const timeTag = recClip.querySelector('.live-rec-tag');
+      if (timeTag) {
+        timeTag.style.display = widthPx >= 60 ? 'flex' : 'none';
+        timeTag.textContent = `REC ${formatTime(elapsed)}`;
+      }
+
+      const bannerTimer = document.getElementById('banner-rec-timer');
+      if (bannerTimer) {
+        bannerTimer.textContent = formatTime(elapsed);
+      }
+    }
+
     function runPlayheadLoop() {
       if (!isPlaying) return;
       currentPlayheadTime = audioContext.currentTime - startTime;
 
-      if (currentPlayheadTime >= maxDuration) {
+      if (window.MuziroRecorder && window.MuziroRecorder.getIsRecording()) {
+        updateLiveRecordingVisuals();
+        if (currentPlayheadTime + 4 > maxDuration) {
+          freeTimelineDuration = Math.max(freeTimelineDuration + 20, currentPlayheadTime + 20);
+          maxDuration = freeTimelineDuration;
+          applyZoom();
+        }
+        if (isPlayheadOutsideView()) {
+          scrollPlayheadIntoView(true);
+        }
+      } else if (currentPlayheadTime >= maxDuration) {
         stopAllSources();
         currentPlayheadTime = 0;
         updatePlayheadPosition();
@@ -4266,6 +4422,9 @@
 
     function pause() {
       if (!isPlaying) return;
+      if (window.MuziroRecorder && window.MuziroRecorder.getIsRecording()) {
+        window.MuziroRecorder.stopRecording();
+      }
       stopAllSources();
       if (isPlayheadOutsideView()) {
         scrollPlayheadIntoView(true);
@@ -4274,6 +4433,9 @@
     }
 
     function stop() {
+      if (window.MuziroRecorder && window.MuziroRecorder.getIsRecording()) {
+        window.MuziroRecorder.stopRecording();
+      }
       stopAllSources();
       currentPlayheadTime = 0;
       updatePlayheadPosition();
@@ -4354,6 +4516,21 @@
       }
     }, { passive: false });
 
+    function toggleRecord() {
+      if (!window.MuziroRecorder) return;
+      if (window.MuziroRecorder.getIsRecording() || window.MuziroRecorder.getIsCountingDown()) {
+        window.MuziroRecorder.stopRecording();
+        return;
+      }
+      let targetTrack = tracks.find(t => t.id === selectedTrackId);
+      if (!targetTrack && tracks.length > 0) {
+        targetTrack = tracks[0];
+        selectTrack(targetTrack.id);
+      }
+      if (!targetTrack) return;
+      window.MuziroRecorder.requestRecording(targetTrack.id, targetTrack.name);
+    }
+
     window.addEventListener('keydown', (e) => {
       const modal = document.getElementById('confirm-modal-overlay');
       const isModalOpen = modal && modal.classList.contains('is-active');
@@ -4374,6 +4551,13 @@
 
       const activeTag = document.activeElement ? document.activeElement.tagName : '';
       if (activeTag === 'TEXTAREA' || (activeTag === 'INPUT' && document.activeElement.type !== 'range')) return;
+
+      // Record: R (or Russian К)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.code === 'KeyR' || e.key.toLowerCase() === 'r' || e.key.toLowerCase() === 'к')) {
+        e.preventDefault();
+        toggleRecord();
+        return;
+      }
 
       // Undo: Ctrl+Z (without Shift)
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyZ' || e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'я')) {
@@ -4429,6 +4613,10 @@
         e.stopPropagation();
         if (document.activeElement && document.activeElement.blur) {
           document.activeElement.blur();
+        }
+        if (window.MuziroRecorder && (window.MuziroRecorder.getIsRecording() || window.MuziroRecorder.getIsCountingDown())) {
+          window.MuziroRecorder.stopRecording();
+          return;
         }
         if (isPlaying) {
           pause();
@@ -4609,6 +4797,195 @@
       isPlaying: () => isPlaying
     };
 
+    // Expose Reverb Bridge for seamless DSP effect control
+    window.MuziroReverbBridge = {
+      getClipReverb: (clipId) => {
+        for (const t of tracks) {
+          for (const c of (t.clips || [])) {
+            if (c.id === clipId) return c.reverb || 0;
+          }
+        }
+        return 0;
+      },
+      applyReverb: (clipId, reverbValue) => {
+        let foundClip = null;
+        outer: for (const t of tracks) {
+          for (const c of (t.clips || [])) {
+            if (c.id === clipId) {
+              foundClip = c;
+              break outer;
+            }
+          }
+        }
+        if (!foundClip) return;
+
+        pushHistorySnapshot();
+        foundClip.reverb = Math.max(0, Math.min(100, Math.round(Number(reverbValue) || 0)));
+
+        // If currently playing, restart audio playback at current playhead to apply new reverb mix in real-time
+        if (isPlaying) {
+          startAllSources(currentPlayheadTime);
+        }
+
+        notifyParent('TIMELINE_MUTATED');
+        showTimelineToast(`Reverb: ${foundClip.reverb}%`);
+      }
+    };
+
+    // Expose Timeline Recording Bridge
+    window.MuziroTimelineBridge = {
+      onRecordingStarted: (trackId) => {
+        const targetTrack = tracks.find(t => t.id === trackId);
+        if (!targetTrack) return currentPlayheadTime;
+
+        if (maxDuration <= 0) {
+          freeTimelineDuration = 60;
+          maxDuration = freeTimelineDuration;
+          applyZoom();
+        }
+        emptyState.style.display = 'none';
+        globalPlayhead.style.display = 'block';
+
+        const recStartTime = currentPlayheadTime;
+
+        // Visual indicator on armed track's R button
+        const recBtn = document.getElementById(`btn-rec-${trackId}`);
+        if (recBtn) recBtn.classList.add('is-recording');
+
+        // Remove placeholder if track was empty
+        const lane = targetTrack.waveLane || document.getElementById(`lane-${trackId}`);
+        if (lane) {
+          const ph = lane.querySelector('.empty-lane-placeholder');
+          if (ph) ph.style.display = 'none';
+
+          const oldRec = document.getElementById('live-recording-clip');
+          if (oldRec) oldRec.remove();
+
+          const recEl = document.createElement('div');
+          recEl.className = 'live-recording-clip';
+          recEl.id = 'live-recording-clip';
+          recEl._recStartTime = recStartTime;
+          const currentLaneW = rulerBar.offsetWidth || 1;
+          const initialLeft = maxDuration > 0 ? (recStartTime / maxDuration) * currentLaneW : 0;
+          recEl.style.left = `${initialLeft}px`;
+          recEl.style.width = '0px';
+          recEl.style.display = 'none';
+          recEl.innerHTML = `
+            <div class="live-rec-tag" style="display: none;">
+              <div class="live-rec-dot"></div>
+              <span class="live-rec-timer">REC 00:00.0</span>
+            </div>
+          `;
+          lane.appendChild(recEl);
+        }
+
+        // Add top recording status pill
+        const oldBanner = document.getElementById('timeline-rec-banner');
+        if (oldBanner) oldBanner.remove();
+
+        const banner = document.createElement('div');
+        banner.className = 'timeline-rec-banner';
+        banner.id = 'timeline-rec-banner';
+        banner.innerHTML = `
+          <div class="timeline-rec-banner-text">
+            <div class="live-rec-dot"></div>
+            <span>REC ON ${targetTrack.name.toUpperCase()}</span>
+            <span id="banner-rec-timer">00:00.0</span>
+          </div>
+          <button class="timeline-rec-banner-stop-btn" id="btn-banner-stop-rec">■ Stop</button>
+        `;
+        banner.querySelector('#btn-banner-stop-rec').addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window.MuziroRecorder) window.MuziroRecorder.stopRecording();
+        });
+        gridContent.appendChild(banner);
+
+        // Start backing playback of all audio tracks at current playhead time
+        startAllSources(recStartTime);
+
+        notifyParent('RECORDING_STARTED', { trackId, startTime: recStartTime });
+        return recStartTime;
+      },
+
+      onRecordingCancelled: (trackId) => {
+        cleanupRecordingVisuals(trackId);
+        stopAllSources();
+        notifyParent('RECORDING_CANCELLED');
+      },
+
+      onRecordingFinished: (trackId, audioBuffer, startTime) => {
+        cleanupRecordingVisuals(trackId);
+        stopAllSources();
+
+        const targetTrack = tracks.find(t => t.id === trackId);
+        if (!targetTrack || !audioBuffer) return;
+
+        pushHistorySnapshot();
+
+        const clipId = 'clip_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        const newClip = {
+          id: clipId,
+          name: `Voice ${targetTrack.clips.length + 1}`,
+          startTime: Math.round(startTime * 1000) / 1000,
+          duration: Math.round(audioBuffer.duration * 1000) / 1000,
+          buffer: audioBuffer,
+          sourceBuffer: audioBuffer,
+          sourceOffset: 0,
+          fadeIn: 0,
+          fadeOut: 0,
+          fadeInCurve: 0,
+          fadeOutCurve: 0,
+          reverb: 0
+        };
+
+        targetTrack.clips.push(newClip);
+        recalcMaxDuration();
+        renderTrackClips(targetTrack);
+        applyZoom();
+        updateClipsLayout();
+        selectClip(clipId);
+
+        showTimelineToast(`● Recorded ${newClip.duration.toFixed(1)}s to "${targetTrack.name}"`);
+        notifyParent('TIMELINE_MUTATED');
+        notifyParent('RECORDING_FINISHED', { trackId, clipId, duration: newClip.duration });
+      }
+    };
+
+    function cleanupRecordingVisuals(trackId) {
+      if (trackId) {
+        const recBtn = document.getElementById(`btn-rec-${trackId}`);
+        if (recBtn) recBtn.classList.remove('is-recording');
+      }
+      document.querySelectorAll('.track-record-btn').forEach(b => b.classList.remove('is-recording'));
+
+      const recEl = document.getElementById('live-recording-clip');
+      if (recEl) recEl.remove();
+
+      const banner = document.getElementById('timeline-rec-banner');
+      if (banner) banner.remove();
+
+      tracks.forEach(t => {
+        if (t.clips.length === 0 && t.waveLane) {
+          const ph = t.waveLane.querySelector('.empty-lane-placeholder');
+          if (ph) ph.style.display = 'flex';
+        }
+      });
+    }
+
+    // Also listen to custom event as an additional safety net
+    window.addEventListener('muziro:apply-reverb', (e) => {
+      if (e.detail && e.detail.clipId) {
+        window.MuziroReverbBridge.applyReverb(e.detail.clipId, e.detail.reverb);
+      }
+    });
+
+    // Also expose global window helpers for backwards compatibility
+    window.tracks = tracks;
+    window.pushHistorySnapshot = pushHistorySnapshot;
+    window.startAllSources = startAllSources;
+    window.getCurrentPlayheadTime = () => currentPlayheadTime;
+    window.getIsPlaying = () => isPlaying;
+
     window.addEventListener('message', async (e) => {
       const data = e.data;
       if (!data || data.target !== 'MUZIRO_TIMELINE') return;
@@ -4630,6 +5007,10 @@
         } else {
           play();
         }
+      } else if (data.action === 'TOGGLE_RECORD') {
+        toggleRecord();
+      } else if (data.action === 'SELECT_TRACK') {
+        selectTrack(data.trackId);
       } else if (data.action === 'STOP' || data.action === 'RESET') {
         stop();
       } else if (data.action === 'SCROLL_TO_PLAYHEAD') {
@@ -4956,6 +5337,7 @@
           fadeOut: c.fadeOut || 0,
           fadeInCurve: c.fadeInCurve || 0,
           fadeOutCurve: c.fadeOutCurve || 0,
+          reverb: c.reverb || 0,
           bufferId: getOrAssignBufferId(c.buffer),
           sourceBufferId: getOrAssignBufferId(c.sourceBuffer || c.buffer)
         }))
@@ -5033,7 +5415,8 @@
               fadeIn: sClip.fadeIn || 0,
               fadeOut: sClip.fadeOut || 0,
               fadeInCurve: sClip.fadeInCurve || 0,
-              fadeOutCurve: sClip.fadeOutCurve || 0
+              fadeOutCurve: sClip.fadeOutCurve || 0,
+              reverb: sClip.reverb || 0
             };
           })
         };
@@ -5132,7 +5515,8 @@
             duration: c.duration,
             sourceOffset: c.sourceOffset || 0,
             fadeIn: c.fadeIn || 0,
-            fadeOut: c.fadeOut || 0
+            fadeOut: c.fadeOut || 0,
+            reverb: c.reverb || 0
           }))
         }))
       };

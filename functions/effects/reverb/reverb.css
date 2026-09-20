@@ -1,0 +1,196 @@
+/* Context Menu Styles */
+.timeline-context-menu {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 0px; /* Sharp corners as requested / CapCut style */
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25); /* Soft black shadow */
+  padding: 4px;
+  min-width: 140px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0;
+  transform: scale(0.95);
+  transform-origin: top left;
+  transition: opacity 0.12s ease, transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.timeline-context-menu.is-active {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 0px;
+  color: #111111;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.context-menu-item:hover {
+  background: #f0f0f0;
+  color: #000000;
+}
+
+/* Reverb Modal Overlay */
+.reverb-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10002;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              backdrop-filter 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.22s ease;
+}
+.reverb-modal-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+/* Rectangular Reverb Modal Card */
+.reverb-modal-card {
+  width: 90%;
+  max-width: 280px;
+  background: #111111; /* Dark premium background */
+  border: 2px solid #000000;
+  border-radius: 0px; /* Rectangular strictly */
+  box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.6);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  transform: scale(0.92) translateY(8px);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reverb-modal-overlay.is-active .reverb-modal-card {
+  transform: scale(1) translateY(0);
+}
+.reverb-modal-header {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: -10px;
+}
+
+/* DJ Style Rotary Knob */
+.reverb-knob-container {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: conic-gradient(from 225deg, #333333 0%, #333333 75%, transparent 75%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1);
+  margin-top: 10px;
+}
+/* Active color track for knob */
+.reverb-knob-track {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 225deg, #ffffff var(--knob-percent, 0%), transparent var(--knob-percent, 0%), transparent 75%, transparent 75%);
+  mask-image: radial-gradient(transparent 36px, black 37px);
+  -webkit-mask-image: radial-gradient(transparent 36px, black 37px);
+}
+.reverb-knob-dial {
+  position: absolute;
+  width: 72px;
+  height: 72px;
+  background: #1a1a1a;
+  border-radius: 50%;
+  border: 1px solid #000;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 2px 4px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  /* Rotate from -135deg (0%) to +135deg (100%) */
+  transform: rotate(var(--knob-angle, -135deg));
+  touch-action: none;
+}
+.reverb-knob-dial:active {
+  cursor: grabbing;
+}
+.reverb-knob-indicator {
+  position: absolute;
+  top: 6px;
+  width: 4px;
+  height: 12px;
+  background: #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+}
+.reverb-knob-value {
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+}
+
+/* Modal Actions */
+.reverb-modal-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-top: 4px;
+}
+.reverb-btn {
+  flex: 1;
+  height: 36px;
+  border-radius: 0px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  font-family: inherit;
+  letter-spacing: 0.5px;
+}
+.reverb-btn-cancel {
+  background: transparent;
+  color: #aaaaaa;
+  border: 1px solid #444444;
+}
+.reverb-btn-cancel:hover {
+  background: #222222;
+  color: #ffffff;
+}
+.reverb-btn-apply {
+  background: #ffffff;
+  color: #000000;
+}
+.reverb-btn-apply:hover {
+  background: #e0e0e0;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
